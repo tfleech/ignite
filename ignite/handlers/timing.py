@@ -4,7 +4,7 @@ from ignite.engine import Events
 
 
 class Timer:
-    """Timer object can be used to measure (average) time between events.
+    """ Timer object can be used to measure (average) time between events.
 
     Args:
         average (bool, optional): if True, then when ``.value()`` method is called, the returned value
@@ -77,19 +77,12 @@ class Timer:
         self._average = average
         self._t0 = perf_counter()
 
-        self.total = 0.0
-        self.step_count = 0.0
+        self.total = 0.
+        self.step_count = 0.
         self.running = True
 
-    def attach(
-        self,
-        engine,
-        start=Events.STARTED,
-        pause=Events.COMPLETED,
-        resume=None,
-        step=None,
-    ):
-        """Register callbacks to control the timer.
+    def attach(self, engine, start=Events.STARTED, pause=Events.COMPLETED, resume=None, step=None):
+        """ Register callbacks to control the timer.
 
         Args:
             engine (Engine):
@@ -139,14 +132,14 @@ class Timer:
             total += self._elapsed()
 
         if self._average:
-            denominator = max(self.step_count, 1.0)
+            denominator = max(self.step_count, 1.)
         else:
-            denominator = 1.0
+            denominator = 1.
 
         return total / denominator
 
     def step(self, *args):
-        self.step_count += 1.0
+        self.step_count += 1.
 
     def _elapsed(self):
         return perf_counter() - self._t0

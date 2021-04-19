@@ -33,15 +33,12 @@ class EpochMetric(Metric):
             you want to compute the metric with respect to one of the outputs.
 
     """
-
     def __init__(self, compute_fn, output_transform=lambda x: x):
 
         if not callable(compute_fn):
             raise TypeError("Argument compute_fn should be callable.")
 
-        super(EpochMetric, self).__init__(
-            output_transform=output_transform, device="cpu"
-        )
+        super(EpochMetric, self).__init__(output_transform=output_transform, device='cpu')
         self.compute_fn = compute_fn
 
     def reset(self):
@@ -52,14 +49,10 @@ class EpochMetric(Metric):
         y_pred, y = output
 
         if y_pred.ndimension() not in (1, 2):
-            raise ValueError(
-                "Predictions should be of shape (batch_size, n_classes) or (batch_size, )."
-            )
+            raise ValueError("Predictions should be of shape (batch_size, n_classes) or (batch_size, ).")
 
         if y.ndimension() not in (1, 2):
-            raise ValueError(
-                "Targets should be of shape (batch_size, n_classes) or (batch_size, )."
-            )
+            raise ValueError("Targets should be of shape (batch_size, n_classes) or (batch_size, ).")
 
         if y.ndimension() == 2:
             if not torch.equal(y ** 2, y):
@@ -82,12 +75,8 @@ class EpochMetric(Metric):
             try:
                 self.compute_fn(self._predictions, self._targets)
             except Exception as e:
-                warnings.warn(
-                    "Probably, there can be a problem with `compute_fn`:\n {}.".format(
-                        e
-                    ),
-                    RuntimeWarning,
-                )
+                warnings.warn("Probably, there can be a problem with `compute_fn`:\n {}.".format(e),
+                              RuntimeWarning)
 
     def compute(self):
         return self.compute_fn(self._predictions, self._targets)

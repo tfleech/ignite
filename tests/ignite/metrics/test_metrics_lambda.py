@@ -1,16 +1,19 @@
 import os
 
 import numpy as np
-import pytest
+from sklearn.metrics import precision_score, recall_score, f1_score
+
 import torch
-from pytest import approx
-from sklearn.metrics import f1_score, precision_score, recall_score
 
 from ignite.engine import Engine
 from ignite.metrics import Metric, MetricsLambda, Precision, Recall
 
+import pytest
+from pytest import approx
+
 
 class ListGatherMetric(Metric):
+
     def __init__(self, index):
         super(ListGatherMetric, self).__init__()
         self.index = index
@@ -40,15 +43,15 @@ def test_metrics_lambda():
 
     m0_plus_m1 = MetricsLambda(plus, m0, other=m1)
     m2_plus_2 = MetricsLambda(plus, m2, 2)
-    m0_plus_m1.attach(engine, "m0_plus_m1")
-    m2_plus_2.attach(engine, "m2_plus_2")
+    m0_plus_m1.attach(engine, 'm0_plus_m1')
+    m2_plus_2.attach(engine, 'm2_plus_2')
 
     engine.run([[1, 10, 100]])
-    assert engine.state.metrics["m0_plus_m1"] == 11
-    assert engine.state.metrics["m2_plus_2"] == 102
+    assert engine.state.metrics['m0_plus_m1'] == 11
+    assert engine.state.metrics['m2_plus_2'] == 102
     engine.run([[2, 20, 200]])
-    assert engine.state.metrics["m0_plus_m1"] == 22
-    assert engine.state.metrics["m2_plus_2"] == 202
+    assert engine.state.metrics['m0_plus_m1'] == 22
+    assert engine.state.metrics['m2_plus_2'] == 202
 
 
 def test_metrics_lambda_reset():
@@ -122,18 +125,14 @@ def test_integration():
 
     precision_true = precision_score(y_true, np.argmax(y_pred, axis=-1), average=None)
     recall_true = recall_score(y_true, np.argmax(y_pred, axis=-1), average=None)
-    f1_true = f1_score(y_true, np.argmax(y_pred, axis=-1), average="macro")
+    f1_true = f1_score(y_true, np.argmax(y_pred, axis=-1), average='macro')
 
-    precision = state.metrics["precision"].numpy()
-    recall = state.metrics["recall"].numpy()
+    precision = state.metrics['precision'].numpy()
+    recall = state.metrics['recall'].numpy()
 
-    assert precision_true == approx(precision), "{} vs {}".format(
-        precision_true, precision
-    )
+    assert precision_true == approx(precision), "{} vs {}".format(precision_true, precision)
     assert recall_true == approx(recall), "{} vs {}".format(recall_true, recall)
-    assert f1_true == approx(state.metrics["f1"]), "{} vs {}".format(
-        f1_true, state.metrics["f1"]
-    )
+    assert f1_true == approx(state.metrics['f1']), "{} vs {}".format(f1_true, state.metrics['f1'])
 
 
 def test_integration_ingredients_not_attached():
@@ -173,10 +172,8 @@ def test_integration_ingredients_not_attached():
 
     data = list(range(n_iters))
     state = evaluator.run(data, max_epochs=1)
-    f1_true = f1_score(y_true, np.argmax(y_pred, axis=-1), average="macro")
-    assert f1_true == approx(state.metrics["f1"]), "{} vs {}".format(
-        f1_true, state.metrics["f1"]
-    )
+    f1_true = f1_score(y_true, np.argmax(y_pred, axis=-1), average='macro')
+    assert f1_true == approx(state.metrics['f1']), "{} vs {}".format(f1_true, state.metrics['f1'])
 
 
 def test_state_metrics():
@@ -238,6 +235,7 @@ def test_state_metrics_ingredients_not_attached():
 
 
 def test_recursive_attachment():
+
     def _test(composed_metric, metric_name, compute_true_value_fn):
 
         metrics = {
@@ -263,16 +261,10 @@ def test_recursive_attachment():
         d = data(y_pred, y)
         state = validator.run(d, max_epochs=1, epoch_length=y_pred.shape[0])
 
-        assert set(state.metrics.keys()) == set(
-            [
-                metric_name,
-            ]
-        )
+        assert set(state.metrics.keys()) == set([metric_name, ])
         np_y_pred = y_pred.numpy().ravel()
         np_y = y.numpy().ravel()
-        assert state.metrics[metric_name] == approx(
-            compute_true_value_fn(np_y_pred, np_y)
-        )
+        assert state.metrics[metric_name] == approx(compute_true_value_fn(np_y_pred, np_y))
 
     precision_1 = Precision()
     precision_2 = Precision()
@@ -283,11 +275,7 @@ def test_recursive_attachment():
         p2 = precision_score(y, y_pred)
         return p1 + p2
 
-    _test(
-        summed_precision,
-        "summed precision",
-        compute_true_value_fn=compute_true_summed_precision,
-    )
+    _test(summed_precision, "summed precision", compute_true_value_fn=compute_true_summed_precision)
 
     precision_1 = Precision()
     precision_2 = Precision()
@@ -298,17 +286,11 @@ def test_recursive_attachment():
         p2 = precision_score(y, y_pred)
         return (p1 + p2) * 0.5
 
-    _test(
-        mean_precision,
-        "mean precision",
-        compute_true_value_fn=compute_true_mean_precision,
-    )
+    _test(mean_precision, "mean precision", compute_true_value_fn=compute_true_mean_precision)
 
     precision_1 = Precision()
     precision_2 = Precision()
-    some_metric = (
-        2.0 + 0.2 * (precision_1 * precision_2 + precision_1 - precision_2) ** 0.5
-    )
+    some_metric = 2.0 + 0.2 * (precision_1 * precision_2 + precision_1 - precision_2) ** 0.5
 
     def compute_true_somemetric(y_pred, y):
         p1 = precision_score(y, y_pred)
@@ -321,7 +303,6 @@ def test_recursive_attachment():
 def _test_distrib_integration(device):
 
     import torch.distributed as dist
-
     rank = dist.get_rank()
     np.random.seed(12)
 
@@ -331,9 +312,7 @@ def _test_distrib_integration(device):
 
     def _test():
         y_true = np.arange(0, n_iters * batch_size * dist.get_world_size()) % n_classes
-        y_pred = 0.2 * np.random.rand(
-            n_iters * batch_size * dist.get_world_size(), n_classes
-        )
+        y_pred = 0.2 * np.random.rand(n_iters * batch_size * dist.get_world_size(), n_classes)
         for i in range(n_iters * batch_size * dist.get_world_size()):
             if np.random.rand() > 0.4:
                 y_pred[i, y_true[i]] = 1.0
@@ -360,23 +339,17 @@ def _test_distrib_integration(device):
         F1 = MetricsLambda(Fbeta, recall, precision, 1)
         F1.attach(evaluator, "f1")
 
-        another_f1 = (
-            (1.0 + precision * recall * 2 / (precision + recall + 1e-20)).mean().item()
-        )
+        another_f1 = (1.0 + precision * recall * 2 / (precision + recall + 1e-20)).mean().item()
         another_f1.attach(evaluator, "ff1")
 
         data = list(range(n_iters))
         state = evaluator.run(data, max_epochs=1)
 
-        assert "f1" in state.metrics
-        assert "ff1" in state.metrics
-        f1_true = f1_score(
-            y_true.ravel(),
-            np.argmax(y_pred.reshape(-1, n_classes), axis=-1),
-            average="macro",
-        )
-        assert f1_true == approx(state.metrics["f1"])
-        assert 1.0 + f1_true == approx(state.metrics["ff1"])
+        assert 'f1' in state.metrics
+        assert 'ff1' in state.metrics
+        f1_true = f1_score(y_true.ravel(), np.argmax(y_pred.reshape(-1, n_classes), axis=-1), average='macro')
+        assert f1_true == approx(state.metrics['f1'])
+        assert 1.0 + f1_true == approx(state.metrics['ff1'])
 
     for _ in range(5):
         _test()
@@ -398,19 +371,14 @@ def test_distrib_cpu(local_rank, distributed_context_single_node_gloo):
 
 
 @pytest.mark.multinode_distributed
-@pytest.mark.skipif(
-    "MULTINODE_DISTRIB" not in os.environ, reason="Skip if not multi-node distributed"
-)
+@pytest.mark.skipif('MULTINODE_DISTRIB' not in os.environ, reason="Skip if not multi-node distributed")
 def test_multinode_distrib_cpu(distributed_context_multi_node_gloo):
     device = "cpu"
     _test_distrib_integration(device)
 
 
 @pytest.mark.multinode_distributed
-@pytest.mark.skipif(
-    "GPU_MULTINODE_DISTRIB" not in os.environ,
-    reason="Skip if not multi-node distributed",
-)
+@pytest.mark.skipif('GPU_MULTINODE_DISTRIB' not in os.environ, reason="Skip if not multi-node distributed")
 def test_multinode_distrib_gpu(distributed_context_multi_node_nccl):
-    device = "cuda:{}".format(distributed_context_multi_node_nccl["local_rank"])
+    device = "cuda:{}".format(distributed_context_multi_node_nccl['local_rank'])
     _test_distrib_integration(device)

@@ -1,13 +1,14 @@
 import os
+import pytest
+
 from unittest.mock import MagicMock, call
 
-import pytest
 import torch
 
-from ignite.contrib.handlers.polyaxon_logger import *
 from ignite.engine import Engine, Events, State
+from ignite.contrib.handlers.polyaxon_logger import *
 
-os.environ["POLYAXON_NO_OP"] = "1"
+os.environ['POLYAXON_NO_OP'] = "1"
 
 
 def test_output_handler_with_wrong_logger_type():
@@ -16,9 +17,7 @@ def test_output_handler_with_wrong_logger_type():
 
     mock_logger = MagicMock()
     mock_engine = MagicMock()
-    with pytest.raises(
-        RuntimeError, match="Handler 'OutputHandler' works only with PolyaxonLogger"
-    ):
+    with pytest.raises(RuntimeError, match="Handler 'OutputHandler' works only with PolyaxonLogger"):
         wrapper(mock_engine, mock_logger, Events.ITERATION_STARTED)
 
 
@@ -42,9 +41,7 @@ def test_output_handler_output_transform():
     mock_logger.log_metrics = MagicMock()
 
     wrapper(mock_engine, mock_logger, Events.ITERATION_STARTED)
-    mock_logger.log_metrics.assert_called_once_with(
-        step=123, **{"another_tag/loss": 12345}
-    )
+    mock_logger.log_metrics.assert_called_once_with(step=123, **{"another_tag/loss": 12345})
 
 
 def test_output_handler_metric_names():
@@ -61,15 +58,13 @@ def test_output_handler_metric_names():
 
     assert mock_logger.log_metrics.call_count == 1
     mock_logger.log_metrics.assert_called_once_with(
-        step=5, **{"tag/a": 12.23, "tag/b": 23.45, "tag/c": 10.0}
+        step=5,
+        **{"tag/a": 12.23,
+           "tag/b": 23.45,
+           "tag/c": 10.0}
     )
 
-    wrapper = OutputHandler(
-        "tag",
-        metric_names=[
-            "a",
-        ],
-    )
+    wrapper = OutputHandler("tag", metric_names=["a", ])
 
     mock_engine = MagicMock()
     mock_engine.state = State(metrics={"a": torch.Tensor([0.0, 1.0, 2.0, 3.0])})
@@ -81,15 +76,13 @@ def test_output_handler_metric_names():
     wrapper(mock_engine, mock_logger, Events.ITERATION_STARTED)
 
     assert mock_logger.log_metrics.call_count == 1
-    mock_logger.log_metrics.assert_has_calls(
-        [
-            call(
-                step=5,
-                **{"tag/a/0": 0.0, "tag/a/1": 1.0, "tag/a/2": 2.0, "tag/a/3": 3.0}
-            ),
-        ],
-        any_order=True,
-    )
+    mock_logger.log_metrics.assert_has_calls([
+        call(step=5,
+             **{"tag/a/0": 0.0,
+                "tag/a/1": 1.0,
+                "tag/a/2": 2.0,
+                "tag/a/3": 3.0}),
+    ], any_order=True)
 
     wrapper = OutputHandler("tag", metric_names=["a", "c"])
 
@@ -104,9 +97,9 @@ def test_output_handler_metric_names():
         wrapper(mock_engine, mock_logger, Events.ITERATION_STARTED)
 
     assert mock_logger.log_metrics.call_count == 1
-    mock_logger.log_metrics.assert_has_calls(
-        [call(step=7, **{"tag/a": 55.56})], any_order=True
-    )
+    mock_logger.log_metrics.assert_has_calls([
+        call(step=7, **{"tag/a": 55.56})
+    ], any_order=True)
 
     # all metrics
     wrapper = OutputHandler("tag", metric_names="all")
@@ -121,15 +114,16 @@ def test_output_handler_metric_names():
 
     assert mock_logger.log_metrics.call_count == 1
     mock_logger.log_metrics.assert_called_once_with(
-        step=5, **{"tag/a": 12.23, "tag/b": 23.45, "tag/c": 10.0}
+        step=5,
+        **{"tag/a": 12.23,
+           "tag/b": 23.45,
+           "tag/c": 10.0}
     )
 
 
 def test_output_handler_both():
 
-    wrapper = OutputHandler(
-        "tag", metric_names=["a", "b"], output_transform=lambda x: {"loss": x}
-    )
+    wrapper = OutputHandler("tag", metric_names=["a", "b"], output_transform=lambda x: {"loss": x})
     mock_logger = MagicMock(spec=PolyaxonLogger)
     mock_logger.log_metrics = MagicMock()
 
@@ -142,19 +136,18 @@ def test_output_handler_both():
 
     assert mock_logger.log_metrics.call_count == 1
     mock_logger.log_metrics.assert_called_once_with(
-        step=5, **{"tag/a": 12.23, "tag/b": 23.45, "tag/loss": 12345}
+        step=5,
+        **{"tag/a": 12.23,
+           "tag/b": 23.45,
+           "tag/loss": 12345}
     )
 
 
 def test_output_handler_with_wrong_global_step_transform_output():
     def global_step_transform(*args, **kwargs):
-        return "a"
+        return 'a'
 
-    wrapper = OutputHandler(
-        "tag",
-        output_transform=lambda x: {"loss": x},
-        global_step_transform=global_step_transform,
-    )
+    wrapper = OutputHandler("tag", output_transform=lambda x: {"loss": x}, global_step_transform=global_step_transform)
     mock_logger = MagicMock(spec=PolyaxonLogger)
     mock_logger.log_metrics = MagicMock()
 
@@ -171,11 +164,7 @@ def test_output_handler_with_global_step_transform():
     def global_step_transform(*args, **kwargs):
         return 10
 
-    wrapper = OutputHandler(
-        "tag",
-        output_transform=lambda x: {"loss": x},
-        global_step_transform=global_step_transform,
-    )
+    wrapper = OutputHandler("tag", output_transform=lambda x: {"loss": x}, global_step_transform=global_step_transform)
     mock_logger = MagicMock(spec=PolyaxonLogger)
     mock_logger.log_metrics = MagicMock()
 
@@ -195,11 +184,8 @@ def test_output_handler_with_global_step_from_engine():
     mock_another_engine.state.epoch = 10
     mock_another_engine.state.output = 12.345
 
-    wrapper = OutputHandler(
-        "tag",
-        output_transform=lambda x: {"loss": x},
-        global_step_transform=global_step_from_engine(mock_another_engine),
-    )
+    wrapper = OutputHandler("tag", output_transform=lambda x: {"loss": x},
+                            global_step_transform=global_step_from_engine(mock_another_engine))
 
     mock_logger = MagicMock(spec=PolyaxonLogger)
     mock_logger.log_metrics = MagicMock()
@@ -211,28 +197,16 @@ def test_output_handler_with_global_step_from_engine():
 
     wrapper(mock_engine, mock_logger, Events.EPOCH_STARTED)
     assert mock_logger.log_metrics.call_count == 1
-    mock_logger.log_metrics.assert_has_calls(
-        [
-            call(
-                step=mock_another_engine.state.epoch,
-                **{"tag/loss": mock_engine.state.output}
-            )
-        ]
-    )
+    mock_logger.log_metrics.assert_has_calls([call(step=mock_another_engine.state.epoch,
+                                                   **{"tag/loss": mock_engine.state.output})])
 
     mock_another_engine.state.epoch = 11
     mock_engine.state.output = 1.123
 
     wrapper(mock_engine, mock_logger, Events.EPOCH_STARTED)
     assert mock_logger.log_metrics.call_count == 2
-    mock_logger.log_metrics.assert_has_calls(
-        [
-            call(
-                step=mock_another_engine.state.epoch,
-                **{"tag/loss": mock_engine.state.output}
-            )
-        ]
-    )
+    mock_logger.log_metrics.assert_has_calls([call(step=mock_another_engine.state.epoch,
+                                                   **{"tag/loss": mock_engine.state.output})])
 
 
 def test_optimizer_params_handler_wrong_setup():
@@ -245,10 +219,7 @@ def test_optimizer_params_handler_wrong_setup():
 
     mock_logger = MagicMock()
     mock_engine = MagicMock()
-    with pytest.raises(
-        RuntimeError,
-        match="Handler 'OptimizerParamsHandler' works only with PolyaxonLogger",
-    ):
+    with pytest.raises(RuntimeError, match="Handler 'OptimizerParamsHandler' works only with PolyaxonLogger"):
         handler(mock_engine, mock_logger, Events.ITERATION_STARTED)
 
 
@@ -270,9 +241,7 @@ def test_optimizer_params():
     mock_logger.log_metrics = MagicMock()
 
     wrapper(mock_engine, mock_logger, Events.ITERATION_STARTED)
-    mock_logger.log_metrics.assert_called_once_with(
-        **{"generator/lr/group_0": 0.01, "step": 123}
-    )
+    mock_logger.log_metrics.assert_called_once_with(**{"generator/lr/group_0": 0.01, "step": 123})
 
 
 def test_integration():
@@ -294,9 +263,9 @@ def test_integration():
         global_step = engine.state.get_event_attrib_value(event_name)
         logger.log_metrics(step=global_step, **{"{}".format("test_value"): global_step})
 
-    plx_logger.attach(
-        trainer, log_handler=dummy_handler, event_name=Events.EPOCH_COMPLETED
-    )
+    plx_logger.attach(trainer,
+                      log_handler=dummy_handler,
+                      event_name=Events.EPOCH_COMPLETED)
 
     trainer.run(data, max_epochs=n_epochs)
 
@@ -318,13 +287,11 @@ def test_integration_as_context_manager():
 
         def dummy_handler(engine, logger, event_name):
             global_step = engine.state.get_event_attrib_value(event_name)
-            logger.log_metrics(
-                step=global_step, **{"{}".format("test_value"): global_step}
-            )
+            logger.log_metrics(step=global_step, **{"{}".format("test_value"): global_step})
 
-        plx_logger.attach(
-            trainer, log_handler=dummy_handler, event_name=Events.EPOCH_COMPLETED
-        )
+        plx_logger.attach(trainer,
+                          log_handler=dummy_handler,
+                          event_name=Events.EPOCH_COMPLETED)
 
         trainer.run(data, max_epochs=n_epochs)
 
@@ -350,8 +317,5 @@ def no_site_packages():
 
 def test_no_polyaxon_client(no_site_packages):
 
-    with pytest.raises(
-        RuntimeError,
-        match=r"This contrib module requires polyaxon-client to be installed",
-    ):
+    with pytest.raises(RuntimeError, match=r"This contrib module requires polyaxon-client to be installed"):
         PolyaxonLogger()

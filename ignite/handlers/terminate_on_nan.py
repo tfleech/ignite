@@ -47,9 +47,6 @@ class TerminateOnNan:
         try:
             apply_to_type(output, (numbers.Number, torch.Tensor), raise_error)
         except RuntimeError:
-            self.logger.warning(
-                "{}: Output '{}' contains NaN or Inf. Stop training".format(
-                    self.__class__.__name__, output
-                )
-            )
+            self.logger.warning("{}: Output '{}' contains NaN or Inf. Stop training"
+                                .format(self.__class__.__name__, output))
             engine.terminate()

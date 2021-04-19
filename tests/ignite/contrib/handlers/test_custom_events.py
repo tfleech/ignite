@@ -1,9 +1,8 @@
 import math
-
 import pytest
 
-from ignite.contrib.handlers.custom_events import CustomPeriodicEvent
 from ignite.engine import Engine
+from ignite.contrib.handlers.custom_events import CustomPeriodicEvent
 
 
 def test_bad_input():
@@ -34,6 +33,7 @@ def test_bad_input():
 
 
 def test_new_events():
+
     def update(*args, **kwargs):
         pass
 
@@ -60,7 +60,9 @@ def test_new_events():
 
 
 def test_integration_iterations():
+
     def _test(n_iterations, max_epochs, n_iters_per_epoch):
+
         def update(*args, **kwargs):
             pass
 
@@ -74,10 +76,7 @@ def test_integration_iterations():
         n_calls_iter_started = [0]
         n_calls_iter_completed = [0]
 
-        event_started = getattr(
-            cpe.Events, "ITERATIONS_{}_STARTED".format(n_iterations)
-        )
-
+        event_started = getattr(cpe.Events, "ITERATIONS_{}_STARTED".format(n_iterations))
         @engine.on(event_started)
         def on_my_event_started(engine):
             assert (engine.state.iteration - 1) % n_iterations == 0
@@ -86,10 +85,7 @@ def test_integration_iterations():
             assert custom_iter == custom_period[0]
             n_calls_iter_started[0] += 1
 
-        event_completed = getattr(
-            cpe.Events, "ITERATIONS_{}_COMPLETED".format(n_iterations)
-        )
-
+        event_completed = getattr(cpe.Events, "ITERATIONS_{}_COMPLETED".format(n_iterations))
         @engine.on(event_completed)
         def on_my_event_ended(engine):
             assert engine.state.iteration % n_iterations == 0
@@ -112,6 +108,7 @@ def test_integration_iterations():
 
 
 def test_integration_epochs():
+
     def update(*args, **kwargs):
         pass
 

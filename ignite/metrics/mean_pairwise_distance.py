@@ -4,7 +4,8 @@ import torch
 from torch.nn.functional import pairwise_distance
 
 from ignite.exceptions import NotComputableError
-from ignite.metrics.metric import Metric, reinit__is_reduced, sync_all_reduce
+from ignite.metrics.metric import Metric
+from ignite.metrics.metric import sync_all_reduce, reinit__is_reduced
 
 
 class MeanPairwiseDistance(Metric):
@@ -13,7 +14,6 @@ class MeanPairwiseDistance(Metric):
 
     - `update` must receive output of the form `(y_pred, y)` or `{'y_pred': y_pred, 'y': y}`.
     """
-
     def __init__(self, p=2, eps=1e-6, output_transform=lambda x: x, device=None):
         super(MeanPairwiseDistance, self).__init__(output_transform, device=device)
         self._p = p
@@ -34,7 +34,5 @@ class MeanPairwiseDistance(Metric):
     @sync_all_reduce("_sum_of_distances", "_num_examples")
     def compute(self):
         if self._num_examples == 0:
-            raise NotComputableError(
-                "MeanAbsoluteError must have at least one example before it can be computed."
-            )
+            raise NotComputableError('MeanAbsoluteError must have at least one example before it can be computed.')
         return self._sum_of_distances / self._num_examples

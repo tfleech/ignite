@@ -1,15 +1,18 @@
 from __future__ import division
 
-import math
-import numbers
-from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
-from collections.abc import Mapping, Sequence
 from copy import copy
 
+import math
+import numbers
+
+from abc import ABCMeta, abstractmethod
+
+from collections.abc import Sequence, Mapping
+
 import torch
-from torch.optim.lr_scheduler import _LRScheduler
 from torch.optim.optimizer import Optimizer
+from torch.optim.lr_scheduler import _LRScheduler
 
 
 class ParamScheduler(metaclass=ABCMeta):
@@ -30,9 +33,7 @@ class ParamScheduler(metaclass=ABCMeta):
 
     """
 
-    def __init__(
-        self, optimizer, param_name, save_history=False, param_group_index=None
-    ):
+    def __init__(self, optimizer, param_name, save_history=False, param_group_index=None):
 
         if not isinstance(optimizer, Optimizer):
             raise TypeError("Argument optimizer should be torch.optim.Optimizer")
@@ -42,12 +43,7 @@ class ParamScheduler(metaclass=ABCMeta):
         self.param_name = param_name
         self.save_history = save_history
         self.event_index = 0
-        self._state_attrs = [
-            "event_index",
-            "param_name",
-            "save_history",
-            "param_group_index",
-        ]
+        self._state_attrs = ['event_index', 'param_name', 'save_history', 'param_group_index']
 
     def __call__(self, engine, name=None):
 
@@ -60,8 +56,8 @@ class ParamScheduler(metaclass=ABCMeta):
             name = self.param_name
 
         if self.save_history:
-            if not hasattr(engine.state, "param_history"):
-                setattr(engine.state, "param_history", {})
+            if not hasattr(engine.state, 'param_history'):
+                setattr(engine.state, 'param_history', {})
             engine.state.param_history.setdefault(name, [])
             values = [pg[self.param_name] for pg in self.optimizer_param_groups]
             engine.state.param_history[name].append(values)
@@ -72,9 +68,7 @@ class ParamScheduler(metaclass=ABCMeta):
     def optimizer_param_groups(self):
         if self.param_group_index is None:
             return self.optimizer.param_groups
-        return [
-            self.optimizer.param_groups[self.param_group_index],
-        ]
+        return [self.optimizer.param_groups[self.param_group_index], ]
 
     def state_dict(self):
         """Returns a dictionary containing a whole state of ParamScheduler.
@@ -87,7 +81,7 @@ class ParamScheduler(metaclass=ABCMeta):
         for name in self._state_attrs:
             if hasattr(self, name):
                 val = getattr(self, name)
-                if hasattr(val, "state_dict"):
+                if hasattr(val, 'state_dict'):
                     val = val.state_dict()
                 destination[name] = copy(val)
         return destination
@@ -99,29 +93,23 @@ class ParamScheduler(metaclass=ABCMeta):
             state_dict (dict): a dict containing parameters.
         """
         if not isinstance(state_dict, Mapping):
-            raise TypeError(
-                "Argument state_dict should be a dictionary, but given {}".format(
-                    type(state_dict)
-                )
-            )
+            raise TypeError("Argument state_dict should be a dictionary, but given {}".format(type(state_dict)))
 
         for name in self._state_attrs:
             if name not in state_dict:
-                raise ValueError(
-                    "Required state attribute '{}' is absent in provided state_dict '{}'".format(
-                        name, state_dict.keys()
-                    )
-                )
+                raise ValueError("Required state attribute '{}' is absent in provided state_dict '{}'"
+                                 .format(name, state_dict.keys()))
             val = state_dict[name]
             obj = getattr(self, name)
-            if isinstance(val, Mapping) and hasattr(obj, "load_state_dict"):
+            if isinstance(val, Mapping) and hasattr(obj, 'load_state_dict'):
                 obj.load_state_dict(val)
             else:
                 setattr(self, name, val)
 
     @abstractmethod
     def get_param(self):
-        """Method to get current optimizer's parameter value"""
+        """Method to get current optimizer's parameter value
+        """
         pass
 
     @classmethod
@@ -149,19 +137,15 @@ class ParamScheduler(metaclass=ABCMeta):
             plt.legend()
 
         """
-        keys_to_remove = ["optimizer", "save_history"]
+        keys_to_remove = ['optimizer', 'save_history']
         for key in keys_to_remove:
             if key in scheduler_kwargs:
                 del scheduler_kwargs[key]
         values = []
-        scheduler = cls(
-            optimizer=_get_fake_optimizer(), save_history=False, **scheduler_kwargs
-        )
+        scheduler = cls(optimizer=_get_fake_optimizer(), save_history=False, **scheduler_kwargs)
         for i in range(num_events):
             scheduler(engine=None)
-            values.append(
-                [i, scheduler.optimizer_param_groups[0][scheduler.param_name]]
-            )
+            values.append([i, scheduler.optimizer_param_groups[0][scheduler.param_name]])
         return values
 
     @classmethod
@@ -194,16 +178,14 @@ class ParamScheduler(metaclass=ABCMeta):
         try:
             import matplotlib.pylab as plt
         except ImportError:
-            raise RuntimeError(
-                "This method requires matplotlib to be installed. "
-                "Please install it with command: \n pip install matplotlib"
-            )
+            raise RuntimeError("This method requires matplotlib to be installed. "
+                               "Please install it with command: \n pip install matplotlib")
 
         values = cls.simulate_values(num_events=num_events, **scheduler_kwargs)
         label = scheduler_kwargs.get("param_name", "learning rate")
         ax = plt.plot([e for e, _ in values], [v for _, v in values], label=label)
         plt.legend()
-        plt.grid(which="both")
+        plt.grid(which='both')
         return ax
 
 
@@ -232,24 +214,22 @@ class CyclicalScheduler(ParamScheduler):
         usually be the number of batches in an epoch.
     """
 
-    def __init__(
-        self,
-        optimizer,
-        param_name,
-        start_value,
-        end_value,
-        cycle_size,
-        cycle_mult=1.0,
-        start_value_mult=1.0,
-        end_value_mult=1.0,
-        save_history=False,
-        param_group_index=None,
-    ):
+    def __init__(self,
+                 optimizer,
+                 param_name,
+                 start_value,
+                 end_value,
+                 cycle_size,
+                 cycle_mult=1.0,
+                 start_value_mult=1.0,
+                 end_value_mult=1.0,
+                 save_history=False,
+                 param_group_index=None):
         super(CyclicalScheduler, self).__init__(
             optimizer,
             param_name,
             save_history=save_history,
-            param_group_index=param_group_index,
+            param_group_index=param_group_index
         )
         self.start_value = start_value
         self.end_value = end_value
@@ -260,20 +240,11 @@ class CyclicalScheduler(ParamScheduler):
         self.end_value_mult = end_value_mult
 
         if self.cycle_size < 2:
-            raise ValueError(
-                "Argument cycle_size should be positive and larger than 1, "
-                "but given {}".format(cycle_size)
-            )
+            raise ValueError("Argument cycle_size should be positive and larger than 1, "
+                             "but given {}".format(cycle_size))
 
-        self._state_attrs += [
-            "start_value",
-            "end_value",
-            "cycle_size",
-            "cycle_mult",
-            "cycle",
-            "start_value_mult",
-            "end_value_mult",
-        ]
+        self._state_attrs += ['start_value', 'end_value', 'cycle_size', 'cycle_mult',
+                              'cycle', 'start_value_mult', 'end_value_mult']
 
     def __call__(self, engine, name=None):
         if self.event_index != 0 and self.event_index % self.cycle_size == 0:
@@ -326,10 +297,7 @@ class LinearCyclicalScheduler(CyclicalScheduler):
 
     def get_param(self):
         cycle_progress = self.event_index / self.cycle_size
-        return (
-            self.end_value
-            + (self.start_value - self.end_value) * abs(cycle_progress - 0.5) * 2
-        )
+        return self.end_value + (self.start_value - self.end_value) * abs(cycle_progress - 0.5) * 2
 
 
 class CosineAnnealingScheduler(CyclicalScheduler):
@@ -393,11 +361,10 @@ class CosineAnnealingScheduler(CyclicalScheduler):
     """
 
     def get_param(self):
-        """Method to get current optimizer's parameter value"""
+        """Method to get current optimizer's parameter value
+        """
         cycle_progress = self.event_index / self.cycle_size
-        return self.start_value + ((self.end_value - self.start_value) / 2) * (
-            1 - math.cos(math.pi * cycle_progress)
-        )
+        return self.start_value + ((self.end_value - self.start_value) / 2) * (1 - math.cos(math.pi * cycle_progress))
 
 
 class ConcatScheduler(ParamScheduler):
@@ -436,43 +403,32 @@ class ConcatScheduler(ParamScheduler):
     def __init__(self, schedulers, durations, save_history=False):
 
         if not isinstance(schedulers, Sequence) or len(schedulers) < 2:
-            raise ValueError(
-                "Argument schedulers should be a sequence of more than one parameter schedulers, "
-                "but given {}".format(schedulers)
-            )
+            raise ValueError("Argument schedulers should be a sequence of more than one parameter schedulers, "
+                             "but given {}".format(schedulers))
 
-        if not isinstance(durations, Sequence) or not all(
-            [isinstance(t, numbers.Integral) for t in durations]
-        ):
-            raise ValueError(
-                "Argument durations should be list/tuple of integers, "
-                "but given {}".format(durations)
-            )
+        if not isinstance(durations, Sequence) or \
+                not all([isinstance(t, numbers.Integral) for t in durations]):
+            raise ValueError("Argument durations should be list/tuple of integers, "
+                             "but given {}".format(durations))
 
         if len(schedulers) != len(durations) + 1:
-            raise ValueError(
-                "Incorrect number schedulers or duration values, "
-                "given {} and {}".format(len(schedulers), len(durations))
-            )
+            raise ValueError("Incorrect number schedulers or duration values, "
+                             "given {} and {}".format(len(schedulers), len(durations)))
 
         for i, scheduler in enumerate(schedulers):
             if not isinstance(scheduler, ParamScheduler):
-                raise TypeError(
-                    "Value at index {} of schedulers should be a parameter scheduler, "
-                    "but given {}".format(i, type(scheduler))
-                )
+                raise TypeError("Value at index {} of schedulers should be a parameter scheduler, "
+                                "but given {}".format(i, type(scheduler)))
 
         self.schedulers = schedulers
         self.durations = durations
-        super(ConcatScheduler, self).__init__(
-            optimizer=_get_fake_optimizer(), param_name="", save_history=save_history
-        )
+        super(ConcatScheduler, self).__init__(optimizer=_get_fake_optimizer(), param_name="", save_history=save_history)
 
         self._scheduler_index = 0
         self._current_scheduler = None
         self._current_duration = None
         self._setup_scheduler()
-        self._state_attrs += ["_current_duration", "durations", "_scheduler_index"]
+        self._state_attrs += ['_current_duration', 'durations', '_scheduler_index']
 
     def state_dict(self):
         """Returns a dictionary containing a whole state of ConcatScheduler.
@@ -483,9 +439,9 @@ class ConcatScheduler(ParamScheduler):
         """
 
         state_dict = super(ConcatScheduler, self).state_dict()
-        state_dict["schedulers"] = []
+        state_dict['schedulers'] = []
         for s in self.schedulers:
-            state_dict["schedulers"].append(s.state_dict())
+            state_dict['schedulers'].append(s.state_dict())
         return state_dict
 
     def load_state_dict(self, state_dict):
@@ -495,24 +451,15 @@ class ConcatScheduler(ParamScheduler):
             state_dict (dict): a dict containing parameters.
         """
         if not isinstance(state_dict, Mapping):
-            raise TypeError(
-                "Argument state_dict should be a dictionary, but given {}".format(
-                    type(state_dict)
-                )
-            )
+            raise TypeError("Argument state_dict should be a dictionary, but given {}".format(type(state_dict)))
 
-        if "schedulers" not in state_dict:
-            raise ValueError(
-                "Required state attribute '{}' is absent in provided state_dict '{}'".format(
-                    "schedulers", state_dict.keys()
-                )
-            )
-        sds = state_dict["schedulers"]
+        if 'schedulers' not in state_dict:
+            raise ValueError("Required state attribute '{}' is absent in provided state_dict '{}'"
+                             .format('schedulers', state_dict.keys()))
+        sds = state_dict['schedulers']
         if len(sds) != len(self.schedulers):
-            raise ValueError(
-                "Input state_dict contains {} state_dicts of concatenated schedulers, "
-                "but {} needed".format(len(sds), len(self.schedulers))
-            )
+            raise ValueError("Input state_dict contains {} state_dicts of concatenated schedulers, "
+                             "but {} needed".format(len(sds), len(self.schedulers)))
 
         for s, sd in zip(self.schedulers, sds):
             s.load_state_dict(sd)
@@ -521,11 +468,8 @@ class ConcatScheduler(ParamScheduler):
 
     def _setup_scheduler(self):
         self._current_scheduler = self.schedulers[self._scheduler_index]
-        self._current_duration = (
-            self.durations[self._scheduler_index]
-            if self._scheduler_index < len(self.durations)
-            else -1
-        )
+        self._current_duration = self.durations[self._scheduler_index] \
+            if self._scheduler_index < len(self.durations) else -1
         self.param_name = self._current_scheduler.param_name
         self.optimizer = self._current_scheduler.optimizer
 
@@ -556,9 +500,7 @@ class ConcatScheduler(ParamScheduler):
         return self._current_scheduler.get_param()
 
     @classmethod
-    def simulate_values(
-        cls, num_events, schedulers, durations, param_names=None, **kwargs
-    ):
+    def simulate_values(cls, num_events, schedulers, durations, param_names=None, **kwargs):
         """Method to simulate scheduled values during num_events events.
 
         Args:
@@ -583,16 +525,8 @@ class ConcatScheduler(ParamScheduler):
             param_names = [scheduler.param_name]
         for i in range(num_events):
             scheduler(engine=None)
-            values = [
-                scheduler.optimizer_param_groups[0][param_name]
-                for param_name in param_names
-            ]
-            output.append(
-                [
-                    i,
-                ]
-                + values
-            )
+            values = [scheduler.optimizer_param_groups[0][param_name] for param_name in param_names]
+            output.append([i, ] + values)
         return output
 
 
@@ -623,44 +557,35 @@ class LRScheduler(ParamScheduler):
     def __init__(self, lr_scheduler, save_history=False, **kwds):
 
         if not isinstance(lr_scheduler, _LRScheduler):
-            raise TypeError(
-                "Argument lr_scheduler should be a subclass of torch.optim.lr_scheduler._LRScheduler, "
-                "but given {}".format(type(lr_scheduler))
-            )
+            raise TypeError("Argument lr_scheduler should be a subclass of torch.optim.lr_scheduler._LRScheduler, "
+                            "but given {}".format(type(lr_scheduler)))
 
         if len(lr_scheduler.optimizer.param_groups) > 1:
-            raise ValueError(
-                "Optimizer passed to lr_scheduler should have a single param group, "
-                "but currently there are {} param groups".format(
-                    len(lr_scheduler.optimizer.param_groups)
-                )
-            )
+            raise ValueError("Optimizer passed to lr_scheduler should have a single param group, "
+                             "but currently there are {} param groups".format(len(lr_scheduler.optimizer.param_groups)))
 
         self.lr_scheduler = lr_scheduler
         super(LRScheduler, self).__init__(
             optimizer=self.lr_scheduler.optimizer,
-            param_name="lr",
-            save_history=save_history,
+            param_name='lr',
+            save_history=save_history
         )
-        self._state_attrs += [
-            "lr_scheduler",
-        ]
+        self._state_attrs += ['lr_scheduler', ]
 
     def __call__(self, engine, name=None):
         self.lr_scheduler.last_epoch += 1
         super(LRScheduler, self).__call__(engine, name)
 
     def get_param(self):
-        """Method to get current optimizer's parameter value"""
+        """Method to get current optimizer's parameter value
+        """
         # Emulate context manager for pytorch>=1.4
         self.lr_scheduler._get_lr_called_within_step = True
         lr_list = self.lr_scheduler.get_lr()
         self.lr_scheduler._get_lr_called_within_step = False
         if len(lr_list) > 1:
-            raise ValueError(
-                "Optimizer passed to lr_scheduler should have a single param group, "
-                "but currently there are {} param groups".format(len(lr_list))
-            )
+            raise ValueError("Optimizer passed to lr_scheduler should have a single param group, "
+                             "but currently there are {} param groups".format(len(lr_list)))
         return lr_list[0]
 
     @classmethod
@@ -682,9 +607,7 @@ class LRScheduler(ParamScheduler):
         values = []
         scheduler = cls(save_history=False, lr_scheduler=copy_lr_scheduler)
         for i in range(num_events):
-            values.append(
-                [i, scheduler.optimizer_param_groups[0][scheduler.param_name]]
-            )
+            values.append([i, scheduler.optimizer_param_groups[0][scheduler.param_name]])
             scheduler(engine=None)
 
         return values
@@ -695,30 +618,20 @@ class LRScheduler(ParamScheduler):
             raise TypeError("lr_scheduler should inherit of _LRScheduler")
         lr_scheduler_cls = lr_scheduler.__class__
         optimizer_cls = lr_scheduler.optimizer.__class__
-        dummy_optimizer = _get_fake_optimizer(
-            optimizer_cls, **lr_scheduler.optimizer.defaults
-        )
+        dummy_optimizer = _get_fake_optimizer(optimizer_cls, **lr_scheduler.optimizer.defaults)
         for group in dummy_optimizer.param_groups:
-            group.setdefault("initial_lr", group["lr"])
+            group.setdefault('initial_lr', group['lr'])
         kwargs = lr_scheduler.state_dict()
-        for k in [_k for _k in kwargs.keys() if "_" == _k[0]] + [
-            "base_lrs",
-            "last_epoch",
-        ]:
+        for k in [_k for _k in kwargs.keys() if "_" == _k[0]] + ['base_lrs', 'last_epoch']:
             del kwargs[k]
         copy_lr_scheduler = lr_scheduler_cls(optimizer=dummy_optimizer, **kwargs)
         copy_lr_scheduler.load_state_dict(lr_scheduler.state_dict())
         return copy_lr_scheduler
 
 
-def create_lr_scheduler_with_warmup(
-    lr_scheduler,
-    warmup_start_value,
-    warmup_end_value,
-    warmup_duration,
-    save_history=False,
-    output_simulated_values=None,
-):
+def create_lr_scheduler_with_warmup(lr_scheduler, warmup_start_value, warmup_end_value, warmup_duration,
+                                    save_history=False,
+                                    output_simulated_values=None):
     """
     Helper method to create a learning rate scheduler with a linear warm-up.
 
@@ -762,29 +675,19 @@ def create_lr_scheduler_with_warmup(
 
     """
     if not isinstance(lr_scheduler, (ParamScheduler, _LRScheduler)):
-        raise TypeError(
-            "Argument lr_scheduler should be a subclass of torch.optim.lr_scheduler._LRScheduler or "
-            "ParamScheduler, but given {}".format(type(lr_scheduler))
-        )
+        raise TypeError("Argument lr_scheduler should be a subclass of torch.optim.lr_scheduler._LRScheduler or "
+                        "ParamScheduler, but given {}".format(type(lr_scheduler)))
 
     if not (isinstance(warmup_duration, numbers.Integral) and warmup_duration > 1):
-        raise ValueError(
-            "Argument warmup_duration should be at least 2 events, but given {}".format(
-                warmup_duration
-            )
-        )
+        raise ValueError("Argument warmup_duration should be at least 2 events, but given {}"
+                         .format(warmup_duration))
 
-    milestones_values = [
-        (0, warmup_start_value),
-        (warmup_duration - 1, warmup_end_value),
-    ]
+    milestones_values = [(0, warmup_start_value), (warmup_duration - 1, warmup_end_value)]
 
     if isinstance(lr_scheduler, _LRScheduler):
-        init_lrs = [g["lr"] for g in lr_scheduler.optimizer.param_groups]
+        init_lrs = [g['lr'] for g in lr_scheduler.optimizer.param_groups]
         if len(init_lrs) < 1:
-            raise RuntimeError(
-                "Number of parameter groups of input `lr_scheduler.optimizer` is less than one."
-            )
+            raise RuntimeError("Number of parameter groups of input `lr_scheduler.optimizer` is less than one.")
 
         if init_lrs[0] != warmup_end_value:
             milestones_values.append((warmup_duration, init_lrs[0]))
@@ -799,30 +702,20 @@ def create_lr_scheduler_with_warmup(
             else:
                 milestones_values.pop(-1)
 
-    warmup_scheduler = PiecewiseLinear(
-        lr_scheduler.optimizer,
-        param_name="lr",
-        milestones_values=milestones_values,
-        param_group_index=lr_scheduler.param_group_index,
-    )
+    warmup_scheduler = PiecewiseLinear(lr_scheduler.optimizer, param_name="lr",
+                                       milestones_values=milestones_values,
+                                       param_group_index=lr_scheduler.param_group_index)
 
     schedulers = [warmup_scheduler, lr_scheduler]
-    durations = [
-        milestones_values[-1][0] + 1,
-    ]
-    combined_scheduler = ConcatScheduler(
-        schedulers, durations=durations, save_history=save_history
-    )
+    durations = [milestones_values[-1][0] + 1, ]
+    combined_scheduler = ConcatScheduler(schedulers, durations=durations,
+                                         save_history=save_history)
     if output_simulated_values is not None:
         if not isinstance(output_simulated_values, list):
-            raise TypeError(
-                "Argument output_simulated_values should be a list of None, e.g. `[None] * 100`, "
-                "but given {}.".format(type(output_simulated_values))
-            )
+            raise TypeError("Argument output_simulated_values should be a list of None, e.g. `[None] * 100`, "
+                            "but given {}.".format(type(output_simulated_values)))
         num_events = len(output_simulated_values)
-        result = ConcatScheduler.simulate_values(
-            num_events=num_events, schedulers=schedulers, durations=durations
-        )
+        result = ConcatScheduler.simulate_values(num_events=num_events, schedulers=schedulers, durations=durations)
         for i in range(num_events):
             output_simulated_values[i] = result[i]
     return combined_scheduler
@@ -858,85 +751,46 @@ class PiecewiseLinear(ParamScheduler):
         #
     """
 
-    def __init__(
-        self,
-        optimizer,
-        param_name,
-        milestones_values,
-        save_history=False,
-        param_group_index=None,
-    ):
-        super(PiecewiseLinear, self).__init__(
-            optimizer, param_name, save_history, param_group_index=param_group_index
-        )
+    def __init__(self, optimizer, param_name, milestones_values, save_history=False, param_group_index=None):
+        super(PiecewiseLinear, self).__init__(optimizer, param_name, save_history, param_group_index=param_group_index)
 
         if not isinstance(milestones_values, Sequence) or len(milestones_values) < 1:
-            raise ValueError(
-                "Argument milestones_values should be a list or tuple with at least one value, "
-                "but given {}".format(type(milestones_values))
-            )
+            raise ValueError("Argument milestones_values should be a list or tuple with at least one value, "
+                             "but given {}".format(type(milestones_values)))
 
         values = []
         milestones = []
         for pair in milestones_values:
             if not isinstance(pair, Sequence) or len(pair) != 2:
-                raise ValueError(
-                    "Argument milestones_values should be a list of pairs (milestone, param_value)"
-                )
+                raise ValueError("Argument milestones_values should be a list of pairs (milestone, param_value)")
             if not isinstance(pair[0], numbers.Integral):
-                raise ValueError(
-                    "Value of a milestone should be integer, but given {}".format(
-                        type(pair[0])
-                    )
-                )
+                raise ValueError("Value of a milestone should be integer, but given {}".format(type(pair[0])))
             if len(milestones) > 0 and pair[0] < milestones[-1]:
-                raise ValueError(
-                    "Milestones should be increasing integers, but given {} is smaller "
-                    "than the previous milestone {}".format(pair[0], milestones[-1])
-                )
+                raise ValueError("Milestones should be increasing integers, but given {} is smaller "
+                                 "than the previous milestone {}".format(pair[0], milestones[-1]))
             milestones.append(pair[0])
             values.append(pair[1])
 
         self.values = values
         self.milestones = milestones
         self._index = 0
-        self._state_attrs += ["values", "milestones", "_index"]
+        self._state_attrs += ['values', 'milestones', '_index']
 
     def _get_start_end(self):
         if self.milestones[0] > self.event_index:
-            return (
-                self.event_index - 1,
-                self.event_index,
-                self.values[0],
-                self.values[0],
-            )
+            return self.event_index - 1, self.event_index, self.values[0], self.values[0]
         elif self.milestones[-1] <= self.event_index:
-            return (
-                self.event_index,
-                self.event_index + 1,
-                self.values[-1],
-                self.values[-1],
-            )
-        elif (
-            self.milestones[self._index]
-            <= self.event_index
-            < self.milestones[self._index + 1]
-        ):
-            return (
-                self.milestones[self._index],
-                self.milestones[self._index + 1],
-                self.values[self._index],
-                self.values[self._index + 1],
-            )
+            return self.event_index, self.event_index + 1, self.values[-1], self.values[-1],
+        elif self.milestones[self._index] <= self.event_index < self.milestones[self._index + 1]:
+            return self.milestones[self._index], self.milestones[self._index + 1], \
+                self.values[self._index], self.values[self._index + 1]
         else:
             self._index += 1
             return self._get_start_end()
 
     def get_param(self):
         start_index, end_index, start_value, end_value = self._get_start_end()
-        return start_value + (end_value - start_value) * (
-            self.event_index - start_index
-        ) / (end_index - start_index)
+        return start_value + (end_value - start_value) * (self.event_index - start_index) / (end_index - start_index)
 
 
 class ParamGroupScheduler:
@@ -968,25 +822,15 @@ class ParamGroupScheduler:
     """
 
     def __init__(self, schedulers, names):
-        if not (
-            isinstance(schedulers, Sequence)
-            and all(isinstance(scheduler, ParamScheduler) for scheduler in schedulers)
-        ):
-            raise ValueError(
-                "Argument schedulers should be a list/tuple of parameter schedulers"
-            )
+        if not (isinstance(schedulers, Sequence) and all(isinstance(scheduler, ParamScheduler)
+                                                         for scheduler in schedulers)):
+            raise ValueError("Argument schedulers should be a list/tuple of parameter schedulers")
 
-        if not (
-            isinstance(names, (list, tuple)) and all(isinstance(n, str) for n in names)
-        ):
-            raise ValueError(
-                "Argument names should be a list/tuple of parameter scheduler's names"
-            )
+        if not (isinstance(names, (list, tuple)) and all(isinstance(n, str) for n in names)):
+            raise ValueError("Argument names should be a list/tuple of parameter scheduler's names")
 
         if len(names) != len(schedulers):
-            raise ValueError(
-                "{} should be equal {}".format(len(schedulers), len(names))
-            )
+            raise ValueError("{} should be equal {}".format(len(schedulers), len(names)))
 
         self.schedulers = schedulers
         self.names = names
@@ -1003,9 +847,9 @@ class ParamGroupScheduler:
                 a dictionary containing a whole state of ParamGroupScheduler
         """
         state_dict = OrderedDict()
-        state_dict["schedulers"] = []
+        state_dict['schedulers'] = []
         for n, s in zip(self.names, self.schedulers):
-            state_dict["schedulers"].append((n, s.state_dict()))
+            state_dict['schedulers'].append((n, s.state_dict()))
         return state_dict
 
     def load_state_dict(self, state_dict):
@@ -1015,48 +859,31 @@ class ParamGroupScheduler:
             state_dict (dict): a dict containing parameters.
         """
         if not isinstance(state_dict, Mapping):
-            raise TypeError(
-                "Argument state_dict should be a dictionary, but given {}".format(
-                    type(state_dict)
-                )
-            )
+            raise TypeError("Argument state_dict should be a dictionary, but given {}".format(type(state_dict)))
 
-        if "schedulers" not in state_dict:
-            raise ValueError(
-                "Required state attribute '{}' is absent in provided state_dict '{}'".format(
-                    "schedulers", state_dict.keys()
-                )
-            )
-        sds = state_dict["schedulers"]
+        if 'schedulers' not in state_dict:
+            raise ValueError("Required state attribute '{}' is absent in provided state_dict '{}'"
+                             .format('schedulers', state_dict.keys()))
+        sds = state_dict['schedulers']
         if len(sds) != len(self.schedulers):
-            raise ValueError(
-                "Input state_dict contains {} state_dicts of param group schedulers, "
-                "but {} needed".format(len(sds), len(self.schedulers))
-            )
+            raise ValueError("Input state_dict contains {} state_dicts of param group schedulers, "
+                             "but {} needed".format(len(sds), len(self.schedulers)))
 
         for req_n, s, (n, sd) in zip(self.names, self.schedulers, sds):
             if req_n != n:
-                raise ValueError(
-                    "Name of scheduler from input state dict does not correspond to required one,"
-                    " {} vs {}".format(n, req_n)
-                )
+                raise ValueError("Name of scheduler from input state dict does not correspond to required one,"
+                                 " {} vs {}".format(n, req_n))
             s.load_state_dict(sd)
 
 
 def _replicate_scheduler(scheduler, save_history=False):
     if isinstance(scheduler, LRScheduler):
-        return LRScheduler(
-            LRScheduler._replicate_lr_scheduler(scheduler.lr_scheduler),
-            save_history=save_history,
-        )
+        return LRScheduler(LRScheduler._replicate_lr_scheduler(scheduler.lr_scheduler),
+                           save_history=save_history)
     elif isinstance(scheduler, ConcatScheduler):
-        copy_schedulers = [
-            _replicate_scheduler(s, save_history=save_history)
-            for s in scheduler.schedulers
-        ]
-        return ConcatScheduler(
-            copy_schedulers, durations=scheduler.durations, save_history=save_history
-        )
+        copy_schedulers = [_replicate_scheduler(s, save_history=save_history)
+                           for s in scheduler.schedulers]
+        return ConcatScheduler(copy_schedulers, durations=scheduler.durations, save_history=save_history)
     elif isinstance(scheduler, ParamScheduler):
         new_scheduler = copy(scheduler)
         new_scheduler.optimizer = _get_fake_optimizer()
@@ -1070,5 +897,5 @@ def _get_fake_optimizer(optimizer_cls=None, **kwargs):
     t = torch.zeros([1], requires_grad=True)
     if optimizer_cls is None:
         optimizer_cls = torch.optim.SGD
-        kwargs["lr"] = 0.01
+        kwargs['lr'] = 0.01
     return optimizer_cls([t], **kwargs)

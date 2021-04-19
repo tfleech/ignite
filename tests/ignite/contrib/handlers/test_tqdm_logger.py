@@ -3,15 +3,16 @@ import numpy as np
 import pytest
 import torch
 
-from ignite.contrib.handlers import CustomPeriodicEvent, ProgressBar
+from ignite.contrib.handlers import ProgressBar
 from ignite.engine import Engine, Events
-from ignite.handlers import TerminateOnNan
 from ignite.metrics import RunningAverage
+from ignite.contrib.handlers import CustomPeriodicEvent
+from ignite.handlers import TerminateOnNan
 
 
 def update_fn(engine, batch):
     a = 1
-    engine.state.metrics["a"] = a
+    engine.state.metrics['a'] = a
     return a
 
 
@@ -22,15 +23,15 @@ def test_pbar(capsys):
     engine = Engine(update_fn)
 
     pbar = ProgressBar()
-    pbar.attach(engine, ["a"])
+    pbar.attach(engine, ['a'])
 
     engine.run(loader, max_epochs=n_epochs)
 
     captured = capsys.readouterr()
-    err = captured.err.split("\r")
+    err = captured.err.split('\r')
     err = list(map(lambda x: x.strip(), err))
     err = list(filter(None, err))
-    expected = u"Epoch [2/2]: [1/2]  50%|█████     , a=1 [00:00<00:00]"
+    expected = u'Epoch [2/2]: [1/2]  50%|█████     , a=1 [00:00<00:00]'
     assert err[-1] == expected
 
 
@@ -40,10 +41,10 @@ def test_pbar_log_message(capsys):
     pbar.log_message("test")
 
     captured = capsys.readouterr()
-    out = captured.out.split("\r")
+    out = captured.out.split('\r')
     out = list(map(lambda x: x.strip(), out))
     out = list(filter(None, out))
-    expected = u"test"
+    expected = u'test'
     assert out[-1] == expected
 
 
@@ -52,7 +53,7 @@ def test_attach_fail_with_string():
     pbar = ProgressBar()
 
     with pytest.raises(TypeError):
-        pbar.attach(engine, "a")
+        pbar.attach(engine, 'a')
 
 
 def test_pbar_with_metric(capsys):
@@ -70,21 +71,16 @@ def test_pbar_with_metric(capsys):
     RunningAverage(alpha=0.5, output_transform=lambda x: x).attach(trainer, "batchloss")
 
     pbar = ProgressBar()
-    pbar.attach(
-        trainer,
-        metric_names=[
-            "batchloss",
-        ],
-    )
+    pbar.attach(trainer, metric_names=['batchloss', ])
 
     trainer.run(data=data, max_epochs=1)
 
     captured = capsys.readouterr()
-    err = captured.err.split("\r")
+    err = captured.err.split('\r')
     err = list(map(lambda x: x.strip(), err))
     err = list(filter(None, err))
     actual = err[-1]
-    expected = u"Epoch: [1/2]  50%|█████     , batchloss=0.5 [00:00<00:00]"
+    expected = u'Epoch: [1/2]  50%|█████     , batchloss=0.5 [00:00<00:00]'
     assert actual == expected
 
 
@@ -102,12 +98,8 @@ def test_pbar_with_all_metric(capsys):
 
     trainer = Engine(step)
 
-    RunningAverage(alpha=0.5, output_transform=lambda x: x[0]).attach(
-        trainer, "batchloss"
-    )
-    RunningAverage(alpha=0.5, output_transform=lambda x: x[1]).attach(
-        trainer, "another batchloss"
-    )
+    RunningAverage(alpha=0.5, output_transform=lambda x: x[0]).attach(trainer, "batchloss")
+    RunningAverage(alpha=0.5, output_transform=lambda x: x[1]).attach(trainer, "another batchloss")
 
     pbar = ProgressBar()
     pbar.attach(trainer, metric_names="all")
@@ -115,11 +107,11 @@ def test_pbar_with_all_metric(capsys):
     trainer.run(data=data, max_epochs=1)
 
     captured = capsys.readouterr()
-    err = captured.err.split("\r")
+    err = captured.err.split('\r')
     err = list(map(lambda x: x.strip(), err))
     err = list(filter(None, err))
     actual = err[-1]
-    expected = u"Epoch: [1/2]  50%|█████     , another batchloss=1.5, batchloss=0.5 [00:00<00:00]"
+    expected = u'Epoch: [1/2]  50%|█████     , another batchloss=1.5, batchloss=0.5 [00:00<00:00]'
     assert actual == expected
 
 
@@ -135,11 +127,11 @@ def test_pbar_no_metric_names(capsys):
     engine.run(loader, max_epochs=n_epochs)
 
     captured = capsys.readouterr()
-    err = captured.err.split("\r")
+    err = captured.err.split('\r')
     err = list(map(lambda x: x.strip(), err))
     err = list(filter(None, err))
     actual = err[-1]
-    expected = u"Epoch [2/2]: [1/2]  50%|█████      [00:00<00:00]"
+    expected = u'Epoch [2/2]: [1/2]  50%|█████      [00:00<00:00]'
     assert actual == expected
 
 
@@ -149,15 +141,15 @@ def test_pbar_with_output(capsys):
     engine = Engine(update_fn)
 
     pbar = ProgressBar()
-    pbar.attach(engine, output_transform=lambda x: {"a": x})
+    pbar.attach(engine, output_transform=lambda x: {'a': x})
 
     engine.run(loader, max_epochs=n_epochs)
 
     captured = capsys.readouterr()
-    err = captured.err.split("\r")
+    err = captured.err.split('\r')
     err = list(map(lambda x: x.strip(), err))
     err = list(filter(None, err))
-    expected = u"Epoch [2/2]: [1/2]  50%|█████     , a=1 [00:00<00:00]"
+    expected = u'Epoch [2/2]: [1/2]  50%|█████     , a=1 [00:00<00:00]'
     assert err[-1] == expected
 
 
@@ -180,10 +172,10 @@ def test_pbar_with_scalar_output(capsys):
     engine.run(loader, max_epochs=n_epochs)
 
     captured = capsys.readouterr()
-    err = captured.err.split("\r")
+    err = captured.err.split('\r')
     err = list(map(lambda x: x.strip(), err))
     err = list(filter(None, err))
-    expected = u"Epoch [2/2]: [1/2]  50%|█████     , output=1 [00:00<00:00]"
+    expected = u'Epoch [2/2]: [1/2]  50%|█████     , output=1 [00:00<00:00]'
     assert err[-1] == expected
 
 
@@ -198,10 +190,10 @@ def test_pbar_with_str_output(capsys):
     engine.run(loader, max_epochs=n_epochs)
 
     captured = capsys.readouterr()
-    err = captured.err.split("\r")
+    err = captured.err.split('\r')
     err = list(map(lambda x: x.strip(), err))
     err = list(filter(None, err))
-    expected = u"Epoch [2/2]: [1/2]  50%|█████     , output=red [00:00<00:00]"
+    expected = u'Epoch [2/2]: [1/2]  50%|█████     , output=red [00:00<00:00]'
     assert err[-1] == expected
 
 
@@ -215,12 +207,10 @@ def test_pbar_with_tqdm_kwargs(capsys):
     engine.run(loader, max_epochs=n_epochs)
 
     captured = capsys.readouterr()
-    err = captured.err.split("\r")
+    err = captured.err.split('\r')
     err = list(map(lambda x: x.strip(), err))
     err = list(filter(None, err))
-    expected = (
-        u"My description:  [10/10]: [4/5]  80%|████████  , output=1 [00:00<00:00]"
-    )
+    expected = u'My description:  [10/10]: [4/5]  80%|████████  , output=1 [00:00<00:00]'
     assert err[-1] == expected
 
 
@@ -233,14 +223,15 @@ def test_pbar_for_validation(capsys):
     engine.run(loader, max_epochs=1)
 
     captured = capsys.readouterr()
-    err = captured.err.split("\r")
+    err = captured.err.split('\r')
     err = list(map(lambda x: x.strip(), err))
     err = list(filter(None, err))
-    expected = u"Validation: [4/5]  80%|████████   [00:00<00:00]"
+    expected = u'Validation: [4/5]  80%|████████   [00:00<00:00]'
     assert err[-1] == expected
 
 
 def test_pbar_output_tensor(capsys):
+
     def _test(out_tensor, out_msg):
         loader = [1, 2, 3, 4, 5]
 
@@ -254,12 +245,10 @@ def test_pbar_output_tensor(capsys):
         engine.run(loader, max_epochs=1)
 
         captured = capsys.readouterr()
-        err = captured.err.split("\r")
+        err = captured.err.split('\r')
         err = list(map(lambda x: x.strip(), err))
         err = list(filter(None, err))
-        expected = u"Output tensor: [4/5]  80%|████████  , {} [00:00<00:00]".format(
-            out_msg
-        )
+        expected = u'Output tensor: [4/5]  80%|████████  , {} [00:00<00:00]'.format(out_msg)
         assert err[-1] == expected
 
     _test(out_tensor=torch.tensor([5, 0]), out_msg="output_0=5, output_1=0")
@@ -288,17 +277,15 @@ def test_pbar_on_epochs(capsys):
     engine = Engine(update_fn)
 
     pbar = ProgressBar()
-    pbar.attach(
-        engine, event_name=Events.EPOCH_STARTED, closing_event_name=Events.COMPLETED
-    )
+    pbar.attach(engine, event_name=Events.EPOCH_STARTED, closing_event_name=Events.COMPLETED)
     engine.run(loader, max_epochs=n_epochs)
 
     captured = capsys.readouterr()
-    err = captured.err.split("\r")
+    err = captured.err.split('\r')
     err = list(map(lambda x: x.strip(), err))
     err = list(filter(None, err))
     actual = err[-1]
-    expected = u"Epoch: [9/10]  90%|█████████  [00:00<00:00]"
+    expected = u'Epoch: [9/10]  90%|█████████  [00:00<00:00]'
     assert actual == expected
 
 
@@ -308,46 +295,22 @@ def test_pbar_wrong_events_order():
     pbar = ProgressBar()
 
     with pytest.raises(ValueError, match="should be called before closing event"):
-        pbar.attach(
-            engine, event_name=Events.COMPLETED, closing_event_name=Events.COMPLETED
-        )
+        pbar.attach(engine, event_name=Events.COMPLETED, closing_event_name=Events.COMPLETED)
 
     with pytest.raises(ValueError, match="should be called before closing event"):
-        pbar.attach(
-            engine,
-            event_name=Events.COMPLETED,
-            closing_event_name=Events.EPOCH_COMPLETED,
-        )
+        pbar.attach(engine, event_name=Events.COMPLETED, closing_event_name=Events.EPOCH_COMPLETED)
 
     with pytest.raises(ValueError, match="should be called before closing event"):
-        pbar.attach(
-            engine,
-            event_name=Events.COMPLETED,
-            closing_event_name=Events.ITERATION_COMPLETED,
-        )
+        pbar.attach(engine, event_name=Events.COMPLETED, closing_event_name=Events.ITERATION_COMPLETED)
 
     with pytest.raises(ValueError, match="should be called before closing event"):
-        pbar.attach(
-            engine,
-            event_name=Events.EPOCH_COMPLETED,
-            closing_event_name=Events.EPOCH_COMPLETED,
-        )
+        pbar.attach(engine, event_name=Events.EPOCH_COMPLETED, closing_event_name=Events.EPOCH_COMPLETED)
 
     with pytest.raises(ValueError, match="should be called before closing event"):
-        pbar.attach(
-            engine,
-            event_name=Events.ITERATION_COMPLETED,
-            closing_event_name=Events.ITERATION_STARTED,
-        )
+        pbar.attach(engine, event_name=Events.ITERATION_COMPLETED, closing_event_name=Events.ITERATION_STARTED)
 
-    with pytest.raises(
-        ValueError, match="Closing event should not use any event filter"
-    ):
-        pbar.attach(
-            engine,
-            event_name=Events.ITERATION_STARTED,
-            closing_event_name=Events.EPOCH_COMPLETED(every=10),
-        )
+    with pytest.raises(ValueError, match="Closing event should not use any event filter"):
+        pbar.attach(engine, event_name=Events.ITERATION_STARTED, closing_event_name=Events.EPOCH_COMPLETED(every=10))
 
 
 def test_pbar_on_custom_events(capsys):
@@ -356,14 +319,8 @@ def test_pbar_on_custom_events(capsys):
     pbar = ProgressBar()
     cpe = CustomPeriodicEvent(n_iterations=15)
 
-    with pytest.raises(
-        ValueError, match=r"Logging event should be only `ignite.engine.Events`"
-    ):
-        pbar.attach(
-            engine,
-            event_name=cpe.Events.ITERATIONS_15_COMPLETED,
-            closing_event_name=Events.EPOCH_COMPLETED,
-        )
+    with pytest.raises(ValueError, match=r"Logging event should be only `ignite.engine.Events`"):
+        pbar.attach(engine, event_name=cpe.Events.ITERATIONS_15_COMPLETED, closing_event_name=Events.EPOCH_COMPLETED)
 
 
 def test_pbar_with_nan_input():
@@ -376,11 +333,7 @@ def test_pbar_with_nan_input():
         pbar = ProgressBar()
 
         engine.add_event_handler(Events.ITERATION_COMPLETED, TerminateOnNan())
-        pbar.attach(
-            engine,
-            event_name=Events.EPOCH_COMPLETED,
-            closing_event_name=Events.COMPLETED,
-        )
+        pbar.attach(engine, event_name=Events.EPOCH_COMPLETED, closing_event_name=Events.COMPLETED)
         return engine
 
     data = torch.from_numpy(np.array([np.nan] * 25))
@@ -405,17 +358,13 @@ def test_pbar_on_callable_events(capsys):
     engine = Engine(update_fn)
 
     pbar = ProgressBar()
-    pbar.attach(
-        engine,
-        event_name=Events.ITERATION_STARTED(every=10),
-        closing_event_name=Events.EPOCH_COMPLETED,
-    )
+    pbar.attach(engine, event_name=Events.ITERATION_STARTED(every=10), closing_event_name=Events.EPOCH_COMPLETED)
     engine.run(loader, max_epochs=n_epochs)
 
     captured = capsys.readouterr()
-    err = captured.err.split("\r")
+    err = captured.err.split('\r')
     err = list(map(lambda x: x.strip(), err))
     err = list(filter(None, err))
     actual = err[-1]
-    expected = u"Epoch: [90/100]  90%|█████████  [00:00<00:00]"
+    expected = u'Epoch: [90/100]  90%|█████████  [00:00<00:00]'
     assert actual == expected

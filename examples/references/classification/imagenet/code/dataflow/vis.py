@@ -1,14 +1,12 @@
 from typing import Callable, Optional
-
 import numpy as np
+
 import torch
 
 try:
     from image_dataset_viz import render_datapoint
 except ImportError:
-    raise RuntimeError(
-        "Install it via pip install --upgrade git+https://github.com/vfdev-5/ImageDatasetViz.git"
-    )
+    raise RuntimeError("Install it via pip install --upgrade git+https://github.com/vfdev-5/ImageDatasetViz.git")
 
 
 def tensor_to_numpy(t: torch.Tensor) -> np.ndarray:
@@ -16,12 +14,10 @@ def tensor_to_numpy(t: torch.Tensor) -> np.ndarray:
     return img.astype(np.uint8)
 
 
-def make_grid(
-    batch_img: torch.Tensor,
-    batch_preds: torch.Tensor,
-    img_denormalize_fn: Callable,
-    batch_gt: Optional[torch.Tensor] = None,
-):
+def make_grid(batch_img: torch.Tensor,
+              batch_preds: torch.Tensor,
+              img_denormalize_fn: Callable,
+              batch_gt: Optional[torch.Tensor] = None):
     """Create a grid from batch image and mask as
 
         i+l1+gt1  | i+l2+gt2  | i+l3+gt3  | i+l4+gt4  | ...
@@ -35,9 +31,7 @@ def make_grid(
         batch_gt (torch.Tensor, optional): batch of ground truth masks.
     """
     assert isinstance(batch_img, torch.Tensor) and isinstance(batch_preds, torch.Tensor)
-    assert len(batch_img) == len(batch_preds), "{} vs {}".format(
-        len(batch_img), len(batch_preds)
-    )
+    assert len(batch_img) == len(batch_preds), "{} vs {}".format(len(batch_img), len(batch_preds))
     assert batch_preds.ndim == 1, "{}".format(batch_preds.ndim)
 
     if batch_gt is not None:
@@ -49,7 +43,7 @@ def make_grid(
     h, w = batch_img.shape[2:]
 
     le = 1
-    out_image = np.zeros((h * le, w * b, 3), dtype="uint8")
+    out_image = np.zeros((h * le, w * b, 3), dtype='uint8')
 
     for i in range(b):
         img = batch_img[i]
@@ -66,8 +60,6 @@ def make_grid(
             gt_label = gt_label.cpu().item()
             target += " | gt={}".format(gt_label)
 
-        out_image[0:h, i * w : (i + 1) * w, :] = render_datapoint(
-            img, target, text_size=12
-        )
+        out_image[0:h, i * w:(i + 1) * w, :] = render_datapoint(img, target, text_size=12)
 
     return out_image

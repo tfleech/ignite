@@ -1,11 +1,12 @@
 import os
 
-import pytest
 import torch
-from pytest import approx
 
 from ignite.exceptions import NotComputableError
 from ignite.metrics import MeanPairwiseDistance
+
+import pytest
+from pytest import approx
 
 
 def test_zero_div():
@@ -34,7 +35,6 @@ def test_compute():
 def _test_distrib_itegration(device):
     import numpy as np
     import torch.distributed as dist
-
     from ignite.engine import Engine
 
     rank = dist.get_rank()
@@ -48,10 +48,8 @@ def _test_distrib_itegration(device):
     y_preds = torch.rand(offset * dist.get_world_size(), 10).to(device)
 
     def update(engine, i):
-        return (
-            y_preds[i * s + offset * rank : (i + 1) * s + offset * rank, ...],
-            y_true[i * s + offset * rank : (i + 1) * s + offset * rank, ...],
-        )
+        return y_preds[i * s + offset * rank:(i + 1) * s + offset * rank, ...], \
+            y_true[i * s + offset * rank:(i + 1) * s + offset * rank, ...]
 
     engine = Engine(update)
 
@@ -62,19 +60,14 @@ def _test_distrib_itegration(device):
     engine.run(data=data, max_epochs=1)
 
     assert "mpwd" in engine.state.metrics
-    res = engine.state.metrics["mpwd"]
+    res = engine.state.metrics['mpwd']
 
     true_res = []
     for i in range(n_iters * dist.get_world_size()):
         true_res.append(
-            torch.pairwise_distance(
-                y_true[i * s : (i + 1) * s, ...],
-                y_preds[i * s : (i + 1) * s, ...],
-                p=m._p,
-                eps=m._eps,
-            )
-            .cpu()
-            .numpy()
+            torch.pairwise_distance(y_true[i * s:(i + 1) * s, ...],
+                                    y_preds[i * s:(i + 1) * s, ...],
+                                    p=m._p, eps=m._eps).cpu().numpy()
         )
     true_res = np.array(true_res).ravel()
     true_res = true_res.mean()
@@ -96,19 +89,14 @@ def test_distrib_cpu(distributed_context_single_node_gloo):
 
 
 @pytest.mark.multinode_distributed
-@pytest.mark.skipif(
-    "MULTINODE_DISTRIB" not in os.environ, reason="Skip if not multi-node distributed"
-)
+@pytest.mark.skipif('MULTINODE_DISTRIB' not in os.environ, reason="Skip if not multi-node distributed")
 def test_multinode_distrib_cpu(distributed_context_multi_node_gloo):
     device = "cpu"
     _test_distrib_itegration(device)
 
 
 @pytest.mark.multinode_distributed
-@pytest.mark.skipif(
-    "GPU_MULTINODE_DISTRIB" not in os.environ,
-    reason="Skip if not multi-node distributed",
-)
+@pytest.mark.skipif('GPU_MULTINODE_DISTRIB' not in os.environ, reason="Skip if not multi-node distributed")
 def test_multinode_distrib_gpu(distributed_context_multi_node_nccl):
-    device = "cuda:{}".format(distributed_context_multi_node_nccl["local_rank"])
+    device = "cuda:{}".format(distributed_context_multi_node_nccl['local_rank'])
     _test_distrib_itegration(device)
