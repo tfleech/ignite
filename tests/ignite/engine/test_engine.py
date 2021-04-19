@@ -1,10 +1,10 @@
 from __future__ import division
 
 import os
-import pytest
-from unittest.mock import call, MagicMock, Mock
+from unittest.mock import MagicMock, Mock, call
 
 import numpy as np
+import pytest
 import torch
 
 from ignite.engine import Engine, Events, State
@@ -35,7 +35,7 @@ def test_current_epoch_counter_increases_every_epoch(counter_factory):
     engine = Engine(MagicMock(return_value=1))
     max_epochs = 5
 
-    counter = counter_factory('epoch')
+    counter = counter_factory("epoch")
     engine.add_event_handler(Events.EPOCH_STARTED, counter)
 
     state = engine.run([1, 2], max_epochs=max_epochs)
@@ -50,7 +50,7 @@ def test_current_iteration_counter_increases_every_iteration(counter_factory):
     engine = Engine(MagicMock(return_value=1))
     max_epochs = 5
 
-    counter = counter_factory('iter')
+    counter = counter_factory("iter")
     engine.add_event_handler(Events.ITERATION_STARTED, counter)
 
     state = engine.run(batches, max_epochs=max_epochs)
@@ -123,8 +123,10 @@ def test_terminate_stops_run_mid_epoch():
     engine.add_event_handler(Events.ITERATION_STARTED, start_of_iteration_handler)
     state = engine.run(data=[None] * num_iterations_per_epoch, max_epochs=3)
     # completes the iteration but doesn't increment counter (this happens just before a new iteration starts)
-    assert (state.iteration == iteration_to_stop)
-    assert state.epoch == np.ceil(iteration_to_stop / num_iterations_per_epoch)  # it starts from 0
+    assert state.iteration == iteration_to_stop
+    assert state.epoch == np.ceil(
+        iteration_to_stop / num_iterations_per_epoch
+    )  # it starts from 0
 
 
 def test_terminate_epoch_stops_mid_epoch():
@@ -140,8 +142,11 @@ def test_terminate_epoch_stops_mid_epoch():
     engine.add_event_handler(Events.ITERATION_STARTED, start_of_iteration_handler)
     state = engine.run(data=[None] * num_iterations_per_epoch, max_epochs=max_epochs)
     # completes the iteration but doesn't increment counter (this happens just before a new iteration starts)
-    assert state.iteration == num_iterations_per_epoch * (max_epochs - 1) + \
-        iteration_to_stop % num_iterations_per_epoch
+    assert (
+        state.iteration
+        == num_iterations_per_epoch * (max_epochs - 1)
+        + iteration_to_stop % num_iterations_per_epoch
+    )
 
 
 def _create_mock_data_loader(epochs, batches_per_epoch):
@@ -169,8 +174,8 @@ def test_iteration_events_are_fired():
     iteration_complete = Mock()
     engine.add_event_handler(Events.ITERATION_COMPLETED, iteration_complete)
 
-    mock_manager.attach_mock(iteration_started, 'iteration_started')
-    mock_manager.attach_mock(iteration_complete, 'iteration_complete')
+    mock_manager.attach_mock(iteration_started, "iteration_started")
+    mock_manager.attach_mock(iteration_complete, "iteration_complete")
 
     engine.run(data, max_epochs=max_epochs)
 
@@ -214,7 +219,6 @@ def test_last_event_name():
 
 
 def test_reset_should_terminate():
-
     def update_fn(engine, batch):
         pass
 
@@ -233,7 +237,6 @@ def test_reset_should_terminate():
 
 
 def test_batch_values():
-
     def _test(data):
         # This test check the content passed to update function
         counter = [0]
@@ -246,7 +249,7 @@ def test_batch_values():
         engine = Engine(update_fn)
         engine.run(data, max_epochs=10)
 
-    data = torch.randint(0, 1000, size=(256, ))
+    data = torch.randint(0, 1000, size=(256,))
     _test(data)
 
 
@@ -271,8 +274,8 @@ def test_alter_batch():
     small_shape = (1, 2, 2)
     large_shape = (1, 3, 3)
 
-    small_loader = torch.randint(0, 256, size=(30, ) + small_shape)
-    large_loader = torch.randint(0, 256, size=(20, ) + large_shape)
+    small_loader = torch.randint(0, 256, size=(30,) + small_shape)
+    large_loader = torch.randint(0, 256, size=(20,) + large_shape)
 
     switch_iteration = 50
 
@@ -286,7 +289,9 @@ def test_alter_batch():
             assert (small_loader[(i - 1) % len(small_loader), ...] == batch).all()
         else:
             assert batch.shape == large_shape
-            assert (large_loader[(i - switch_iteration) % len(large_loader), ...] == batch).all()
+            assert (
+                large_loader[(i - switch_iteration) % len(large_loader), ...] == batch
+            ).all()
 
     trainer = Engine(update_fn)
 
@@ -324,7 +329,9 @@ def test__is_done():
 
 def test__setup_engine():
     engine = Engine(lambda e, b: 1)
-    engine.state = State(iteration=10, epoch=1, max_epochs=100, epoch_length=100, seed=12)
+    engine.state = State(
+        iteration=10, epoch=1, max_epochs=100, epoch_length=100, seed=12
+    )
 
     data = list(range(100))
     engine.state.dataloader = data
@@ -335,10 +342,15 @@ def test__setup_engine():
 def test_run_asserts():
     engine = Engine(lambda e, b: 1)
 
-    with pytest.raises(ValueError, match=r"Input data has zero size. Please provide non-empty data"):
+    with pytest.raises(
+        ValueError, match=r"Input data has zero size. Please provide non-empty data"
+    ):
         engine.run([])
 
-    with pytest.raises(ValueError, match=r"Argument `epoch_length` should be defined if `data` is an iterator"):
+    with pytest.raises(
+        ValueError,
+        match=r"Argument `epoch_length` should be defined if `data` is an iterator",
+    ):
         engine.run(iter([0, 1, 2, 3]))
 
 
@@ -371,12 +383,17 @@ def test_state_get_event_attrib_value():
 
 
 def _test_run_check_triggered_events():
-
     def _test(data, max_epochs, epoch_length):
         engine = Engine(lambda e, b: 1)
 
-        events = [Events.STARTED, Events.EPOCH_STARTED, Events.ITERATION_STARTED,
-                  Events.ITERATION_COMPLETED, Events.EPOCH_COMPLETED, Events.COMPLETED]
+        events = [
+            Events.STARTED,
+            Events.EPOCH_STARTED,
+            Events.ITERATION_STARTED,
+            Events.ITERATION_COMPLETED,
+            Events.EPOCH_COMPLETED,
+            Events.COMPLETED,
+        ]
 
         handlers = {e: MagicMock() for e in events}
 
@@ -395,8 +412,9 @@ def _test_run_check_triggered_events():
         }
 
         for n, handler in handlers.items():
-            assert handler.call_count == expected_num_calls[n], \
-                "{}: {} vs {}".format(n, handler.call_count, expected_num_calls[n])
+            assert handler.call_count == expected_num_calls[n], "{}: {} vs {}".format(
+                n, handler.call_count, expected_num_calls[n]
+            )
 
     _test(list(range(100)), max_epochs=5, epoch_length=100)
     _test(list(range(100)), max_epochs=5, epoch_length=50)
@@ -409,12 +427,17 @@ def test_run_check_triggered_events():
 
 
 def _test_run_check_triggered_events_on_iterator():
-
     def _test(data, max_epochs, epoch_length):
         engine = Engine(lambda e, b: 1)
 
-        events = [Events.STARTED, Events.EPOCH_STARTED, Events.ITERATION_STARTED,
-                  Events.ITERATION_COMPLETED, Events.EPOCH_COMPLETED, Events.COMPLETED]
+        events = [
+            Events.STARTED,
+            Events.EPOCH_STARTED,
+            Events.ITERATION_STARTED,
+            Events.ITERATION_COMPLETED,
+            Events.EPOCH_COMPLETED,
+            Events.COMPLETED,
+        ]
 
         handlers = {e: MagicMock() for e in events}
 
@@ -433,8 +456,9 @@ def _test_run_check_triggered_events_on_iterator():
         }
 
         for n, handler in handlers.items():
-            assert handler.call_count == expected_num_calls[n], \
-                "{}: {} vs {}".format(n, handler.call_count, expected_num_calls[n])
+            assert handler.call_count == expected_num_calls[n], "{}: {} vs {}".format(
+                n, handler.call_count, expected_num_calls[n]
+            )
 
     def infinite_data_iterator():
         while True:
@@ -454,15 +478,21 @@ def _test_run_check_triggered_events_on_iterator():
 
     # These tests will fail
     with pytest.raises(AssertionError):
-        with pytest.warns(UserWarning, match=r"Data iterator can not provide data anymore"):
+        with pytest.warns(
+            UserWarning, match=r"Data iterator can not provide data anymore"
+        ):
             _test(limited_data_iterator(), max_epochs=3, epoch_length=100)
 
     with pytest.raises(AssertionError):
-        with pytest.warns(UserWarning, match=r"Data iterator can not provide data anymore"):
+        with pytest.warns(
+            UserWarning, match=r"Data iterator can not provide data anymore"
+        ):
             _test(limited_data_iterator(), max_epochs=3, epoch_length=75)
 
     with pytest.raises(AssertionError):
-        with pytest.warns(UserWarning, match=r"Data iterator can not provide data anymore"):
+        with pytest.warns(
+            UserWarning, match=r"Data iterator can not provide data anymore"
+        ):
             _test(limited_data_iterator(), max_epochs=1, epoch_length=101)
 
 
@@ -485,14 +515,19 @@ def test_distrib_cpu(distributed_context_single_node_gloo):
 
 
 @pytest.mark.multinode_distributed
-@pytest.mark.skipif('MULTINODE_DISTRIB' not in os.environ, reason="Skip if not multi-node distributed")
+@pytest.mark.skipif(
+    "MULTINODE_DISTRIB" not in os.environ, reason="Skip if not multi-node distributed"
+)
 def test_multinode_distrib_cpu(distributed_context_multi_node_gloo):
     _test_run_check_triggered_events_on_iterator()
     _test_run_check_triggered_events()
 
 
 @pytest.mark.multinode_distributed
-@pytest.mark.skipif('GPU_MULTINODE_DISTRIB' not in os.environ, reason="Skip if not multi-node distributed")
+@pytest.mark.skipif(
+    "GPU_MULTINODE_DISTRIB" not in os.environ,
+    reason="Skip if not multi-node distributed",
+)
 def test_multinode_distrib_gpu(distributed_context_multi_node_nccl):
     _test_run_check_triggered_events_on_iterator()
     _test_run_check_triggered_events()

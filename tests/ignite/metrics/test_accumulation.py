@@ -1,13 +1,12 @@
 import os
-import torch
+
 import numpy as np
-
 import pytest
+import torch
 
-from ignite.metrics.accumulation import VariableAccumulation, Average, GeometricAverage
+from ignite.engine import Engine, Events
 from ignite.exceptions import NotComputableError
-from ignite.engine import Events, Engine
-
+from ignite.metrics.accumulation import Average, GeometricAverage, VariableAccumulation
 
 torch.manual_seed(15)
 
@@ -65,7 +64,7 @@ def test_average():
         v.compute()
 
     mean_var = Average()
-    y_true = torch.rand(100) + torch.randint(0, 10, size=(100, )).float()
+    y_true = torch.rand(100) + torch.randint(0, 10, size=(100,)).float()
 
     for y in y_true:
         mean_var.update(y.item())
@@ -124,11 +123,12 @@ def test_geom_average():
         mean_var.update(y)
 
     m = mean_var.compute()
-    np.testing.assert_almost_equal(m.numpy(), _geom_mean(y_true.reshape(-1, 10)), decimal=5)
+    np.testing.assert_almost_equal(
+        m.numpy(), _geom_mean(y_true.reshape(-1, 10)), decimal=5
+    )
 
 
 def test_integration():
-
     def _test(metric_cls, true_result_fn):
 
         size = 100
@@ -140,11 +140,14 @@ def test_integration():
         engine = Engine(update_fn)
 
         custom_var_mean = metric_cls(output_transform=lambda output: output[1])
-        custom_var_mean.attach(engine, 'agg_custom_var')
+        custom_var_mean.attach(engine, "agg_custom_var")
 
         state = engine.run([0] * size)
-        np.testing.assert_almost_equal(state.metrics['agg_custom_var'].numpy(), true_result_fn(custom_variable),
-                                       decimal=5)
+        np.testing.assert_almost_equal(
+            state.metrics["agg_custom_var"].numpy(),
+            true_result_fn(custom_variable),
+            decimal=5,
+        )
 
         size = 100
         custom_variable = 10.0 + 5.0 * torch.rand(size)
@@ -155,10 +158,12 @@ def test_integration():
         engine = Engine(update_fn)
 
         custom_var_mean = metric_cls(output_transform=lambda output: output[1])
-        custom_var_mean.attach(engine, 'agg_custom_var')
+        custom_var_mean.attach(engine, "agg_custom_var")
 
         state = engine.run([0] * size)
-        assert state.metrics['agg_custom_var'] == pytest.approx(true_result_fn(custom_variable))
+        assert state.metrics["agg_custom_var"] == pytest.approx(
+            true_result_fn(custom_variable)
+        )
 
     def _mean(y_true):
         return y_true.mean(dim=0).numpy()
@@ -172,7 +177,9 @@ def test_compute_mean_std():
     b = 12
     c = 3
     w = h = 64
-    true_data = np.arange(0, n * b * h * w * c, dtype='float64').reshape(n * b, c, h, w) - (n * b * c * w * h * 0.75)
+    true_data = np.arange(0, n * b * h * w * c, dtype="float64").reshape(
+        n * b, c, h, w
+    ) - (n * b * c * w * h * 0.75)
     mean = true_data.transpose((0, 2, 3, 1)).reshape(-1, c).mean(axis=0)
     std = true_data.transpose((0, 2, 3, 1)).reshape(-1, c).std(axis=0)
 
@@ -186,15 +193,17 @@ def test_compute_mean_std():
         return {"mean": _mean, "mean^2": _mean2}
 
     compute_engine = Engine(compute_mean_std)
-    img_mean = Average(output_transform=lambda output: output['mean'])
-    img_mean2 = Average(output_transform=lambda output: output['mean^2'])
-    img_mean.attach(compute_engine, 'mean')
-    img_mean2.attach(compute_engine, 'mean2')
+    img_mean = Average(output_transform=lambda output: output["mean"])
+    img_mean2 = Average(output_transform=lambda output: output["mean^2"])
+    img_mean.attach(compute_engine, "mean")
+    img_mean2.attach(compute_engine, "mean2")
     state = compute_engine.run(train_loader)
-    state.metrics['std'] = torch.sqrt(state.metrics['mean2'] - state.metrics['mean'] ** 2)
+    state.metrics["std"] = torch.sqrt(
+        state.metrics["mean2"] - state.metrics["mean"] ** 2
+    )
 
-    np.testing.assert_almost_equal(state.metrics['mean'].numpy(), mean, decimal=7)
-    np.testing.assert_almost_equal(state.metrics['std'].numpy(), std, decimal=5)
+    np.testing.assert_almost_equal(state.metrics["mean"].numpy(), mean, decimal=7)
+    np.testing.assert_almost_equal(state.metrics["std"].numpy(), std, decimal=5)
 
 
 def _test_distrib_variable_accumulation(device):
@@ -225,14 +234,14 @@ def _test_distrib_variable_accumulation(device):
     dist.all_reduce(y_true)
     a, n = mean_var.compute()
     assert n == len(y_true) * dist.get_world_size()
-    np.testing.assert_almost_equal(a.cpu().numpy(),
-                                   y_true.sum(dim=0).cpu().numpy(),
-                                   decimal=5)
+    np.testing.assert_almost_equal(
+        a.cpu().numpy(), y_true.sum(dim=0).cpu().numpy(), decimal=5
+    )
     a, n = mean_var.compute()
     assert n == len(y_true) * dist.get_world_size()
-    np.testing.assert_almost_equal(a.cpu().numpy(),
-                                   y_true.sum(dim=0).cpu().numpy(),
-                                   decimal=5)
+    np.testing.assert_almost_equal(
+        a.cpu().numpy(), y_true.sum(dim=0).cpu().numpy(), decimal=5
+    )
 
 
 def _test_distrib_average(device):
@@ -244,7 +253,10 @@ def _test_distrib_average(device):
         v.compute()
 
     mean_var = Average(device=device)
-    y_true = torch.rand(100, dtype=torch.float64) + torch.randint(0, 10, size=(100, )).double()
+    y_true = (
+        torch.rand(100, dtype=torch.float64)
+        + torch.randint(0, 10, size=(100,)).double()
+    )
     y_true = y_true.to(device)
 
     for y in y_true:
@@ -256,7 +268,10 @@ def _test_distrib_average(device):
     assert m.item() == pytest.approx(y_true.mean().item() / dist.get_world_size())
 
     mean_var = Average(device=device)
-    y_true = torch.rand(100, 10, dtype=torch.float64) + torch.randint(0, 10, size=(100, 10)).double()
+    y_true = (
+        torch.rand(100, 10, dtype=torch.float64)
+        + torch.randint(0, 10, size=(100, 10)).double()
+    )
     y_true = y_true.to(device)
 
     for y in y_true:
@@ -265,9 +280,11 @@ def _test_distrib_average(device):
     m = mean_var.compute()
 
     dist.all_reduce(y_true)
-    np.testing.assert_almost_equal(m.cpu().numpy(),
-                                   y_true.mean(dim=0).cpu().numpy() / dist.get_world_size(),
-                                   decimal=5)
+    np.testing.assert_almost_equal(
+        m.cpu().numpy(),
+        y_true.mean(dim=0).cpu().numpy() / dist.get_world_size(),
+        decimal=5,
+    )
 
 
 def _test_distrib_geom_average(device):
@@ -279,7 +296,10 @@ def _test_distrib_geom_average(device):
         v.compute()
 
     mean_var = GeometricAverage(device=device)
-    y_true = torch.rand(100, dtype=torch.float64) + torch.randint(0, 10, size=(100,)).double()
+    y_true = (
+        torch.rand(100, dtype=torch.float64)
+        + torch.randint(0, 10, size=(100,)).double()
+    )
     y_true = y_true.to(device)
 
     for y in y_true:
@@ -288,10 +308,15 @@ def _test_distrib_geom_average(device):
     m = mean_var.compute()
     log_y_true = torch.log(y_true)
     dist.all_reduce(log_y_true)
-    assert m.item() == pytest.approx(torch.exp(log_y_true.mean(dim=0) / dist.get_world_size()).item())
+    assert m.item() == pytest.approx(
+        torch.exp(log_y_true.mean(dim=0) / dist.get_world_size()).item()
+    )
 
     mean_var = GeometricAverage(device=device)
-    y_true = torch.rand(100, 10, dtype=torch.float64) + torch.randint(0, 10, size=(100, 10)).double()
+    y_true = (
+        torch.rand(100, 10, dtype=torch.float64)
+        + torch.randint(0, 10, size=(100, 10)).double()
+    )
     y_true = y_true.to(device)
 
     for y in y_true:
@@ -300,9 +325,11 @@ def _test_distrib_geom_average(device):
     m = mean_var.compute()
     log_y_true = torch.log(y_true)
     dist.all_reduce(log_y_true)
-    np.testing.assert_almost_equal(m.cpu().numpy(),
-                                   torch.exp(log_y_true.mean(dim=0) / dist.get_world_size()).cpu().numpy(),
-                                   decimal=5)
+    np.testing.assert_almost_equal(
+        m.cpu().numpy(),
+        torch.exp(log_y_true.mean(dim=0) / dist.get_world_size()).cpu().numpy(),
+        decimal=5,
+    )
 
 
 def _test_distrib_integration(device):
@@ -320,14 +347,17 @@ def _test_distrib_integration(device):
 
         engine = Engine(update_fn)
 
-        custom_var_mean = metric_cls(output_transform=lambda output: output[1],
-                                     device=device)
-        custom_var_mean.attach(engine, 'agg_custom_var')
+        custom_var_mean = metric_cls(
+            output_transform=lambda output: output[1], device=device
+        )
+        custom_var_mean.attach(engine, "agg_custom_var")
 
         state = engine.run([0] * size)
-        np.testing.assert_almost_equal(state.metrics['agg_custom_var'].cpu().numpy(),
-                                       true_result_fn(custom_variable),
-                                       decimal=5)
+        np.testing.assert_almost_equal(
+            state.metrics["agg_custom_var"].cpu().numpy(),
+            true_result_fn(custom_variable),
+            decimal=5,
+        )
 
         size = 100
         custom_variable = 10.0 + 5.0 * torch.rand(size, dtype=torch.float64)
@@ -338,12 +368,15 @@ def _test_distrib_integration(device):
 
         engine = Engine(update_fn)
 
-        custom_var_mean = metric_cls(output_transform=lambda output: output[1],
-                                     device=device)
-        custom_var_mean.attach(engine, 'agg_custom_var')
+        custom_var_mean = metric_cls(
+            output_transform=lambda output: output[1], device=device
+        )
+        custom_var_mean.attach(engine, "agg_custom_var")
 
         state = engine.run([0] * size)
-        assert state.metrics['agg_custom_var'] == pytest.approx(true_result_fn(custom_variable))
+        assert state.metrics["agg_custom_var"] == pytest.approx(
+            true_result_fn(custom_variable)
+        )
 
     def _mean(y_true):
         dist.all_reduce(y_true)
@@ -363,7 +396,7 @@ def _test_distrib_integration(device):
 @pytest.mark.skipif(torch.cuda.device_count() < 1, reason="Skip if no GPU")
 def test_distrib_gpu(distributed_context_single_node_nccl):
 
-    device = "cuda:{}".format(distributed_context_single_node_nccl['local_rank'])
+    device = "cuda:{}".format(distributed_context_single_node_nccl["local_rank"])
     _test_distrib_variable_accumulation(device)
     _test_distrib_average(device)
     _test_distrib_geom_average(device)
@@ -381,7 +414,9 @@ def test_distrib_cpu(distributed_context_single_node_gloo):
 
 
 @pytest.mark.multinode_distributed
-@pytest.mark.skipif('MULTINODE_DISTRIB' not in os.environ, reason="Skip if not multi-node distributed")
+@pytest.mark.skipif(
+    "MULTINODE_DISTRIB" not in os.environ, reason="Skip if not multi-node distributed"
+)
 def test_multinode_distrib_cpu(distributed_context_multi_node_gloo):
     device = "cpu"
     _test_distrib_variable_accumulation(device)
@@ -391,9 +426,12 @@ def test_multinode_distrib_cpu(distributed_context_multi_node_gloo):
 
 
 @pytest.mark.multinode_distributed
-@pytest.mark.skipif('GPU_MULTINODE_DISTRIB' not in os.environ, reason="Skip if not multi-node distributed")
+@pytest.mark.skipif(
+    "GPU_MULTINODE_DISTRIB" not in os.environ,
+    reason="Skip if not multi-node distributed",
+)
 def test_multinode_distrib_gpu(distributed_context_multi_node_nccl):
-    device = "cuda:{}".format(distributed_context_multi_node_nccl['local_rank'])
+    device = "cuda:{}".format(distributed_context_multi_node_nccl["local_rank"])
     _test_distrib_variable_accumulation(device)
     _test_distrib_average(device)
     _test_distrib_geom_average(device)
