@@ -2,9 +2,9 @@ from __future__ import division
 
 import torch
 
+from ignite.metrics.metric import reinit__is_reduced
 from ignite.metrics.precision import _BasePrecisionRecall
 from ignite.utils import to_onehot
-from ignite.metrics.metric import reinit__is_reduced
 
 
 class Recall(_BasePrecisionRecall):
@@ -65,9 +65,19 @@ class Recall(_BasePrecisionRecall):
 
     """
 
-    def __init__(self, output_transform=lambda x: x, average=False, is_multilabel=False, device=None):
-        super(Recall, self).__init__(output_transform=output_transform,
-                                     average=average, is_multilabel=is_multilabel, device=device)
+    def __init__(
+        self,
+        output_transform=lambda x: x,
+        average=False,
+        is_multilabel=False,
+        device=None,
+    ):
+        super(Recall, self).__init__(
+            output_transform=output_transform,
+            average=average,
+            is_multilabel=is_multilabel,
+            device=device,
+        )
 
     @reinit__is_reduced
     def update(self, output):
@@ -81,8 +91,12 @@ class Recall(_BasePrecisionRecall):
         elif self._type == "multiclass":
             num_classes = y_pred.size(1)
             if y.max() + 1 > num_classes:
-                raise ValueError("y_pred contains less classes than y. Number of predicted classes is {}"
-                                 " and element in y has invalid class = {}.".format(num_classes, y.max().item() + 1))
+                raise ValueError(
+                    "y_pred contains less classes than y. Number of predicted classes is {}"
+                    " and element in y has invalid class = {}.".format(
+                        num_classes, y.max().item() + 1
+                    )
+                )
             y = to_onehot(y.view(-1), num_classes=num_classes)
             indices = torch.argmax(y_pred, dim=1).view(-1)
             y_pred = to_onehot(indices, num_classes=num_classes)
@@ -94,7 +108,9 @@ class Recall(_BasePrecisionRecall):
 
         y = y.type_as(y_pred)
         correct = y * y_pred
-        actual_positives = y.sum(dim=0).type(torch.DoubleTensor)  # Convert from int cuda/cpu to double cpu
+        actual_positives = y.sum(dim=0).type(
+            torch.DoubleTensor
+        )  # Convert from int cuda/cpu to double cpu
 
         if correct.sum() == 0:
             true_positives = torch.zeros_like(actual_positives)
@@ -107,10 +123,14 @@ class Recall(_BasePrecisionRecall):
 
         if self._type == "multilabel":
             if not self._average:
-                self._true_positives = torch.cat([self._true_positives, true_positives], dim=0)
+                self._true_positives = torch.cat(
+                    [self._true_positives, true_positives], dim=0
+                )
                 self._positives = torch.cat([self._positives, actual_positives], dim=0)
             else:
-                self._true_positives += torch.sum(true_positives / (actual_positives + self.eps))
+                self._true_positives += torch.sum(
+                    true_positives / (actual_positives + self.eps)
+                )
                 self._positives += len(actual_positives)
         else:
             self._true_positives += true_positives

@@ -4,8 +4,8 @@ from enum import Enum
 
 import torch
 
-from ignite.utils import apply_to_tensor
 from ignite.engine import Engine, _prepare_batch
+from ignite.utils import apply_to_tensor
 
 
 class Tbptt_Events(Enum):
@@ -36,7 +36,7 @@ def create_supervised_tbptt_trainer(
     dim=0,
     device=None,
     non_blocking=False,
-    prepare_batch=_prepare_batch
+    prepare_batch=_prepare_batch,
 ):
     """Create a trainer for truncated backprop through time supervised models.
 

@@ -38,7 +38,9 @@ class EarlyStopping:
 
     """
 
-    def __init__(self, patience, score_function, trainer, min_delta=0., cumulative_delta=False):
+    def __init__(
+        self, patience, score_function, trainer, min_delta=0.0, cumulative_delta=False
+    ):
 
         if not callable(score_function):
             raise TypeError("Argument score_function should be a function.")
@@ -46,7 +48,7 @@ class EarlyStopping:
         if patience < 1:
             raise ValueError("Argument patience should be positive integer.")
 
-        if min_delta < 0.:
+        if min_delta < 0.0:
             raise ValueError("Argument min_delta should not be a negative number.")
 
         if not isinstance(trainer, Engine):

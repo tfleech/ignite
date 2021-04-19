@@ -2,8 +2,8 @@ from __future__ import division
 
 import torch
 
-from ignite.exceptions import NotComputableError
 from ignite.contrib.metrics.regression._base import _BaseRegression
+from ignite.exceptions import NotComputableError
 
 
 class MeanAbsoluteRelativeError(_BaseRegression):
@@ -30,13 +30,17 @@ class MeanAbsoluteRelativeError(_BaseRegression):
     def _update(self, output):
         y_pred, y = output
         if (y == 0).any():
-            raise NotComputableError('The ground truth has 0.')
-        absolute_error = torch.abs(y_pred - y.view_as(y_pred)) / torch.abs(y.view_as(y_pred))
+            raise NotComputableError("The ground truth has 0.")
+        absolute_error = torch.abs(y_pred - y.view_as(y_pred)) / torch.abs(
+            y.view_as(y_pred)
+        )
         self._sum_of_absolute_relative_errors += torch.sum(absolute_error).item()
         self._num_samples += y.size()[0]
 
     def compute(self):
         if self._num_samples == 0:
-            raise NotComputableError('MeanAbsoluteRelativeError must have at least'
-                                     'one sample before it can be computed.')
+            raise NotComputableError(
+                "MeanAbsoluteRelativeError must have at least"
+                "one sample before it can be computed."
+            )
         return self._sum_of_absolute_relative_errors / self._num_samples

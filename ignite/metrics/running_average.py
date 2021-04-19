@@ -37,9 +37,12 @@ class RunningAverage(Metric):
             print("running avg loss:", engine.state.metrics['running_avg_loss'])
 
     """
+
     _required_output_keys = None
 
-    def __init__(self, src=None, alpha=0.98, output_transform=None, epoch_bound=True, device=None):
+    def __init__(
+        self, src=None, alpha=0.98, output_transform=None, epoch_bound=True, device=None
+    ):
         if not (isinstance(src, Metric) or src is None):
             raise TypeError("Argument src should be a Metric or None.")
         if not (0.0 < alpha <= 1.0):
@@ -47,7 +50,9 @@ class RunningAverage(Metric):
 
         if isinstance(src, Metric):
             if output_transform is not None:
-                raise ValueError("Argument output_transform should be None if src is a Metric.")
+                raise ValueError(
+                    "Argument output_transform should be None if src is a Metric."
+                )
             if device is not None:
                 raise ValueError("Argument device should be None if src is a Metric.")
             self.src = src
@@ -55,14 +60,18 @@ class RunningAverage(Metric):
             self.iteration_completed = self._metric_iteration_completed
         else:
             if output_transform is None:
-                raise ValueError("Argument output_transform should not be None if src corresponds "
-                                 "to the output of process function.")
+                raise ValueError(
+                    "Argument output_transform should not be None if src corresponds "
+                    "to the output of process function."
+                )
             self._get_src_value = self._get_output_value
             self.update = self._output_update
 
         self.alpha = alpha
         self.epoch_bound = epoch_bound
-        super(RunningAverage, self).__init__(output_transform=output_transform, device=device)
+        super(RunningAverage, self).__init__(
+            output_transform=output_transform, device=device
+        )
 
     @reinit__is_reduced
     def reset(self):
@@ -77,7 +86,9 @@ class RunningAverage(Metric):
         if self._value is None:
             self._value = self._get_src_value()
         else:
-            self._value = self._value * self.alpha + (1.0 - self.alpha) * self._get_src_value()
+            self._value = (
+                self._value * self.alpha + (1.0 - self.alpha) * self._get_src_value()
+            )
 
         return self._value
 

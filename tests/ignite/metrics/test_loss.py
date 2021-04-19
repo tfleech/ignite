@@ -1,14 +1,13 @@
 import os
 
+import pytest
 import torch
+from numpy.testing import assert_almost_equal
 from torch import nn
 from torch.nn.functional import nll_loss
 
 from ignite.exceptions import NotComputableError
 from ignite.metrics import Loss
-
-import pytest
-from numpy.testing import assert_almost_equal
 
 
 def test_zero_div():
@@ -46,7 +45,7 @@ def test_compute_on_criterion():
 
 
 def test_non_averaging_loss():
-    loss = Loss(nn.NLLLoss(reduction='none'))
+    loss = Loss(nn.NLLLoss(reduction="none"))
 
     y_pred = torch.tensor([[0.1, 0.4, 0.5], [0.1, 0.7, 0.2]]).log()
     y = torch.tensor([2, 2]).long()
@@ -101,7 +100,9 @@ def _test_distrib_compute_on_criterion(device):
     assert_almost_equal(res, true_loss_value.item())
 
     loss.reset()
-    y_pred = torch.tensor([[0.1, 0.3, 0.6], [0.6, 0.2, 0.2], [0.2, 0.7, 0.1]], device=device).log()
+    y_pred = torch.tensor(
+        [[0.1, 0.3, 0.6], [0.6, 0.2, 0.2], [0.2, 0.7, 0.1]], device=device
+    ).log()
     y = torch.tensor([2, 0, 2], device=device).long()
     loss.update((y_pred, y))
     n = loss._num_examples
@@ -130,14 +131,19 @@ def test_distrib_cpu(distributed_context_single_node_gloo):
 
 
 @pytest.mark.multinode_distributed
-@pytest.mark.skipif('MULTINODE_DISTRIB' not in os.environ, reason="Skip if not multi-node distributed")
+@pytest.mark.skipif(
+    "MULTINODE_DISTRIB" not in os.environ, reason="Skip if not multi-node distributed"
+)
 def test_multinode_distrib_cpu(distributed_context_multi_node_gloo):
     device = "cpu"
     _test_distrib_compute_on_criterion(device)
 
 
 @pytest.mark.multinode_distributed
-@pytest.mark.skipif('GPU_MULTINODE_DISTRIB' not in os.environ, reason="Skip if not multi-node distributed")
+@pytest.mark.skipif(
+    "GPU_MULTINODE_DISTRIB" not in os.environ,
+    reason="Skip if not multi-node distributed",
+)
 def test_multinode_distrib_gpu(distributed_context_multi_node_nccl):
-    device = "cuda:{}".format(distributed_context_multi_node_nccl['local_rank'])
+    device = "cuda:{}".format(distributed_context_multi_node_nccl["local_rank"])
     _test_distrib_compute_on_criterion(device)
