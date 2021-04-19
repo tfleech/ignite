@@ -1,10 +1,10 @@
 import os
-
-import pytest
 import torch
 
 from ignite.engine import Engine, Events
 from ignite.handlers import EarlyStopping
+
+import pytest
 
 
 def do_nothing_update_fn(engine, batch):
@@ -77,9 +77,8 @@ def test_early_stopping_on_last_event_delta():
 
     trainer = Engine(do_nothing_update_fn)
 
-    h = EarlyStopping(
-        patience=2, min_delta=0.4, cumulative_delta=False, score_function=lambda _: next(scores), trainer=trainer
-    )
+    h = EarlyStopping(patience=2, min_delta=0.4, cumulative_delta=False,
+                      score_function=lambda _: next(scores), trainer=trainer)
 
     assert not trainer.should_terminate
     h(None)  # counter == 0
@@ -96,9 +95,8 @@ def test_early_stopping_on_cumulative_delta():
 
     trainer = Engine(do_nothing_update_fn)
 
-    h = EarlyStopping(
-        patience=2, min_delta=0.4, cumulative_delta=True, score_function=lambda _: next(scores), trainer=trainer
-    )
+    h = EarlyStopping(patience=2, min_delta=0.4, cumulative_delta=True,
+                      score_function=lambda _: next(scores), trainer=trainer)
 
     assert not trainer.should_terminate
     h(None)  # counter == 0
@@ -110,6 +108,7 @@ def test_early_stopping_on_cumulative_delta():
 
 
 def test_simple_early_stopping_on_plateau():
+
     def score_function(engine):
         return 42
 
@@ -143,6 +142,7 @@ def test_simple_no_early_stopping():
 
 
 def test_with_engine_early_stopping():
+
     class Counter(object):
         def __init__(self, count=0):
             self.count = count
@@ -170,6 +170,7 @@ def test_with_engine_early_stopping():
 
 
 def test_with_engine_early_stopping_on_plateau():
+
     class Counter(object):
         def __init__(self, count=0):
             self.count = count
@@ -195,6 +196,7 @@ def test_with_engine_early_stopping_on_plateau():
 
 
 def test_with_engine_no_early_stopping():
+
     class Counter(object):
         def __init__(self, count=0):
             self.count = count
@@ -261,7 +263,6 @@ def _test_distrib_integration_engine_early_stopping(device):
 
     import torch.distributed as dist
     from ignite.metrics import Accuracy
-
     rank = dist.get_rank()
     ws = dist.get_world_size()
     torch.manual_seed(12)
@@ -269,17 +270,21 @@ def _test_distrib_integration_engine_early_stopping(device):
     n_epochs = 10
     n_iters = 20
 
-    y_preds = (
-        [torch.randint(0, 2, size=(n_iters, ws)).to(device)]
-        + [torch.ones(n_iters, ws).to(device)]
-        + [torch.randint(0, 2, size=(n_iters, ws)).to(device) for _ in range(n_epochs - 2)]
-    )
+    y_preds = [
+        torch.randint(0, 2, size=(n_iters, ws)).to(device)
+    ] + [
+        torch.ones(n_iters, ws).to(device)
+    ] + [
+        torch.randint(0, 2, size=(n_iters, ws)).to(device) for _ in range(n_epochs - 2)
+    ]
 
-    y_true = (
-        [torch.randint(0, 2, size=(n_iters, ws)).to(device)]
-        + [torch.ones(n_iters, ws).to(device)]
-        + [torch.randint(0, 2, size=(n_iters, ws)).to(device) for _ in range(n_epochs - 2)]
-    )
+    y_true = [
+        torch.randint(0, 2, size=(n_iters, ws)).to(device)
+    ] + [
+        torch.ones(n_iters, ws).to(device)
+    ] + [
+        torch.randint(0, 2, size=(n_iters, ws)).to(device) for _ in range(n_epochs - 2)
+    ]
 
     def update(engine, _):
         e = trainer.state.epoch - 1
@@ -291,7 +296,7 @@ def _test_distrib_integration_engine_early_stopping(device):
     acc.attach(evaluator, "acc")
 
     def score_function(engine):
-        return engine.state.metrics["acc"]
+        return engine.state.metrics['acc']
 
     trainer = Engine(lambda e, b: None)
     early_stopping = EarlyStopping(patience=3, score_function=score_function, trainer=trainer)
@@ -322,7 +327,7 @@ def test_distrib_cpu(local_rank, distributed_context_single_node_gloo):
 
 
 @pytest.mark.multinode_distributed
-@pytest.mark.skipif("MULTINODE_DISTRIB" not in os.environ, reason="Skip if not multi-node distributed")
+@pytest.mark.skipif('MULTINODE_DISTRIB' not in os.environ, reason="Skip if not multi-node distributed")
 def test_multinode_distrib_cpu(distributed_context_multi_node_gloo):
     device = "cpu"
     _test_distrib_with_engine_early_stopping(device)
@@ -330,8 +335,8 @@ def test_multinode_distrib_cpu(distributed_context_multi_node_gloo):
 
 
 @pytest.mark.multinode_distributed
-@pytest.mark.skipif("GPU_MULTINODE_DISTRIB" not in os.environ, reason="Skip if not multi-node distributed")
+@pytest.mark.skipif('GPU_MULTINODE_DISTRIB' not in os.environ, reason="Skip if not multi-node distributed")
 def test_multinode_distrib_gpu(distributed_context_multi_node_nccl):
-    device = "cuda:{}".format(distributed_context_multi_node_nccl["local_rank"])
+    device = "cuda:{}".format(distributed_context_multi_node_nccl['local_rank'])
     _test_distrib_with_engine_early_stopping(device)
     _test_distrib_integration_engine_early_stopping(device)

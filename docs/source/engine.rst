@@ -1,35 +1,22 @@
 ignite.engine
 ==============
 
-.. currentmodule:: ignite.engine.engine
+.. currentmodule:: ignite.engine
 
 .. autoclass:: Engine
    :members:
 
-.. automodule:: ignite.engine.engine
+.. automodule:: ignite.engine
    :members:
-
-
-ignite.engine.events
---------------------
-
-.. currentmodule:: ignite.engine.events
 
 .. autoclass:: Events
    :members:
+   :undoc-members:
 
 .. autoclass:: State
+
+.. currentmodule:: ignite.engine.engine
 
 .. autoclass:: RemovableEventHandle
    :members:
    :undoc-members:
-
-
-ignite.engine.deterministic
----------------------------
-
-
-.. currentmodule:: ignite.engine.deterministic
-
-.. automodule:: ignite.engine.deterministic
-   :members:

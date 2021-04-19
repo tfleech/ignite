@@ -16,19 +16,6 @@ param_scheduler
 .. automodule:: ignite.contrib.handlers.param_scheduler
    :members:
 
-lr_finder
----------
-
-.. automodule:: ignite.contrib.handlers.lr_finder
-   :members:
-
-
-time_profilers
----------------
-
-.. automodule:: ignite.contrib.handlers.time_profilers
-   :members:
-
 tensorboard_logger
 ------------------
 
@@ -48,18 +35,6 @@ See `visdom mnist example <https://github.com/pytorch/ignite/blob/master/example
 for detailed usage.
 
 .. automodule:: ignite.contrib.handlers.visdom_logger
-   :members:
-   :inherited-members:
-
-
-neptune_logger
-------------------
-
-See `neptune mnist example <https://github.com/pytorch/ignite/blob/master/examples/contrib/mnist/mnist_with_neptune_logger.py>`_
-for detailed usage.
-
-
-.. automodule:: ignite.contrib.handlers.neptune_logger
    :members:
    :inherited-members:
 
@@ -85,22 +60,6 @@ polyaxon_logger
    :members:
    :inherited-members:
 
-wandb_logger
----------------
-
-.. automodule:: ignite.contrib.handlers.wandb_logger
-   :members:
-   :inherited-members:
-
-trains_logger
----------------
-
-See `trains mnist example <https://github.com/pytorch/ignite/blob/master/examples/contrib/mnist/mnist_with_trains_logger.py>`_
-for detailed usage.
-
-.. automodule:: ignite.contrib.handlers.trains_logger
-   :members:
-   :inherited-members:
 
 More on parameter scheduling
 ----------------------------

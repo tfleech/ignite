@@ -1,7 +1,9 @@
+from __future__ import division
+
 import torch
 
-from ignite.contrib.metrics.regression._base import _BaseRegression
 from ignite.exceptions import NotComputableError
+from ignite.contrib.metrics.regression._base import _BaseRegression
 
 
 class FractionalAbsoluteError(_BaseRegression):
@@ -32,7 +34,6 @@ class FractionalAbsoluteError(_BaseRegression):
 
     def compute(self):
         if self._num_examples == 0:
-            raise NotComputableError(
-                "FractionalAbsoluteError must have at least " "one example before it can be computed."
-            )
+            raise NotComputableError('FractionalAbsoluteError must have at least '
+                                     'one example before it can be computed.')
         return self._sum_of_errors / self._num_examples

@@ -1,9 +1,6 @@
 import logging
-from typing import Callable
 
 from ignite.engine import Engine
-
-__all__ = ["EarlyStopping"]
 
 
 class EarlyStopping:
@@ -41,14 +38,7 @@ class EarlyStopping:
 
     """
 
-    def __init__(
-        self,
-        patience: int,
-        score_function: Callable,
-        trainer: Engine,
-        min_delta: float = 0.0,
-        cumulative_delta: bool = False,
-    ):
+    def __init__(self, patience, score_function, trainer, min_delta=0., cumulative_delta=False):
 
         if not callable(score_function):
             raise TypeError("Argument score_function should be a function.")
@@ -56,7 +46,7 @@ class EarlyStopping:
         if patience < 1:
             raise ValueError("Argument patience should be positive integer.")
 
-        if min_delta < 0.0:
+        if min_delta < 0.:
             raise ValueError("Argument min_delta should not be a negative number.")
 
         if not isinstance(trainer, Engine):
@@ -71,7 +61,7 @@ class EarlyStopping:
         self.best_score = None
         self.logger = logging.getLogger(__name__ + "." + self.__class__.__name__)
 
-    def __call__(self, engine: Engine) -> None:
+    def __call__(self, engine):
         score = self.score_function(engine)
 
         if self.best_score is None:

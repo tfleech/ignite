@@ -1,30 +1,24 @@
 import math
-from unittest.mock import MagicMock
-
-import pytest
 import torch
 
-from ignite.contrib.handlers import CustomPeriodicEvent, global_step_from_engine
-from ignite.contrib.handlers.base_logger import BaseLogger, BaseOptimizerParamsHandler, BaseOutputHandler
-from ignite.engine import Engine, Events, State
+from ignite.engine import Engine, State, Events
+from ignite.engine.engine import EventWithFilter
+from ignite.contrib.handlers.base_logger import BaseLogger, BaseOutputHandler, global_step_from_engine
+from ignite.contrib.handlers import CustomPeriodicEvent
 
+import pytest
 
-class DummyOutputHandler(BaseOutputHandler):
-    def __call__(self, *args, **kwargs):
-        pass
-
-
-class DummyOptParamsHandler(BaseOptimizerParamsHandler):
-    def __call__(self, *args, **kwargs):
-        pass
+from unittest.mock import MagicMock
 
 
 class DummyLogger(BaseLogger):
-    def _create_output_handler(self, *args, **kwargs):
-        return DummyOutputHandler(*args, **kwargs)
+    pass
 
-    def _create_opt_params_handler(self, *args, **kwargs):
-        return DummyOptParamsHandler(*args, **kwargs)
+
+class DummyOutputHandler(BaseOutputHandler):
+
+    def __call__(self, *args, **kwargs):
+        pass
 
 
 def test_base_output_handler_wrong_setup():
@@ -38,8 +32,21 @@ def test_base_output_handler_wrong_setup():
     with pytest.raises(ValueError, match="Either metric_names or output_transform should be defined"):
         DummyOutputHandler("tag", None, None)
 
+    with pytest.raises(TypeError, match="Argument another_engine should be of type Engine"):
+        DummyOutputHandler("tag", ["a", "b"], None, another_engine=123)
+
     with pytest.raises(TypeError, match="global_step_transform should be a function"):
         DummyOutputHandler("tag", metric_names=["loss"], global_step_transform="abc")
+
+
+def test_base_output_handler_with_another_engine():
+    engine = Engine(lambda engine, batch: None)
+    true_metrics = {"a": 0, "b": 1}
+    engine.state = State(metrics=true_metrics)
+    engine.state.output = 12345
+
+    with pytest.warns(DeprecationWarning, match="Use of another_engine is deprecated"):
+        handler = DummyOutputHandler("tag", metric_names=['a', 'b'], output_transform=None, another_engine=engine)
 
 
 def test_base_output_handler_setup_output_metrics():
@@ -50,12 +57,12 @@ def test_base_output_handler_setup_output_metrics():
     engine.state.output = 12345
 
     # Only metric_names
-    handler = DummyOutputHandler("tag", metric_names=["a", "b"], output_transform=None)
+    handler = DummyOutputHandler("tag", metric_names=['a', 'b'], output_transform=None)
     metrics = handler._setup_output_metrics(engine=engine)
     assert metrics == true_metrics
 
     # Only metric_names with a warning
-    handler = DummyOutputHandler("tag", metric_names=["a", "c"], output_transform=None)
+    handler = DummyOutputHandler("tag", metric_names=['a', 'c'], output_transform=None)
     with pytest.warns(UserWarning):
         metrics = handler._setup_output_metrics(engine=engine)
     assert metrics == {"a": 0}
@@ -71,7 +78,7 @@ def test_base_output_handler_setup_output_metrics():
     assert metrics == {"loss": engine.state.output}
 
     # Metrics and output
-    handler = DummyOutputHandler("tag", metric_names=["a", "b"], output_transform=lambda x: {"loss": x})
+    handler = DummyOutputHandler("tag", metric_names=['a', 'b'], output_transform=lambda x: {"loss": x})
     metrics = handler._setup_output_metrics(engine=engine)
     assert metrics == {"a": 0, "b": 1, "loss": engine.state.output}
 
@@ -100,9 +107,14 @@ def test_attach():
 
         mock_log_handler = MagicMock()
 
-        logger.attach(trainer, log_handler=mock_log_handler, event_name=event)
+        logger.attach(trainer,
+                      log_handler=mock_log_handler,
+                      event_name=event)
 
         trainer.run(data, max_epochs=n_epochs)
+
+        if isinstance(event, EventWithFilter):
+            event = event.event
 
         mock_log_handler.assert_called_with(trainer, logger, event)
         assert mock_log_handler.call_count == n_calls
@@ -137,7 +149,9 @@ def test_attach_on_custom_event():
 
         mock_log_handler = MagicMock()
 
-        logger.attach(trainer, log_handler=mock_log_handler, event_name=event)
+        logger.attach(trainer,
+                      log_handler=mock_log_handler,
+                      event_name=event)
 
         trainer.run(data, max_epochs=n_epochs)
 
@@ -174,7 +188,8 @@ def test_as_context_manager():
     n_epochs = 5
     data = list(range(50))
 
-    class _DummyLogger(DummyLogger):
+    class _DummyLogger(BaseLogger):
+
         def __init__(self, writer):
             self.writer = writer
 
@@ -200,9 +215,14 @@ def test_as_context_manager():
             trainer = Engine(update_fn)
             mock_log_handler = MagicMock()
 
-            logger.attach(trainer, log_handler=mock_log_handler, event_name=event)
+            logger.attach(trainer,
+                          log_handler=mock_log_handler,
+                          event_name=event)
 
             trainer.run(data, max_epochs=n_epochs)
+
+            if isinstance(event, EventWithFilter):
+                event = event.event
 
             mock_log_handler.assert_called_with(trainer, logger, event)
             assert mock_log_handler.call_count == n_calls
@@ -217,3 +237,19 @@ def test_as_context_manager():
     _test(Events.COMPLETED, 1)
 
     _test(Events.ITERATION_STARTED(every=10), len(data) // 10 * n_epochs)
+
+
+def test_global_step_from_engine():
+
+    engine = Engine(lambda engine, batch: None)
+    engine.state = State()
+    engine.state.epoch = 1
+
+    another_engine = Engine(lambda engine, batch: None)
+    another_engine.state = State()
+    another_engine.state.epoch = 10
+
+    global_step_transform = global_step_from_engine(another_engine)
+    res = global_step_transform(engine, Events.EPOCH_COMPLETED)
+
+    assert res == another_engine.state.epoch

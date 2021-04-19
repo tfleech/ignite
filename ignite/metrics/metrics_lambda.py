@@ -1,10 +1,7 @@
 import itertools
-from typing import Any, Callable, Union
 
-from ignite.engine import Engine, Events
-from ignite.metrics.metric import EpochWise, Metric, MetricUsage, reinit__is_reduced
-
-__all__ = ["MetricsLambda"]
+from ignite.metrics.metric import Metric, reinit__is_reduced
+from ignite.engine import Events
 
 
 class MetricsLambda(Metric):
@@ -15,8 +12,8 @@ class MetricsLambda(Metric):
 
     When update, this metric does not recursively update the metrics
     it depends on. When reset, all its dependency metrics would be
-    resetted. When attach, all its dependency metrics would be attached
-    automatically (but partially, e.g `is_attached()` will return False).
+    resetted. When attach, all its dependencies would be automatically
+    attached.
 
     Args:
         f (callable): the function that defines the computation
@@ -37,100 +34,43 @@ class MetricsLambda(Metric):
         F2 = MetricsLambda(Fbeta, recall, precision, 2)
         F3 = MetricsLambda(Fbeta, recall, precision, 3)
         F4 = MetricsLambda(Fbeta, recall, precision, 4)
-
-    When check if the metric is attached, if one of its dependency
-    metrics is detached, the metric is considered detached too.
-
-    .. code-block:: python
-
-        engine = ...
-        precision = Precision(average=False)
-
-        aP = precision.mean()
-
-        aP.attach(engine, "aP")
-
-        assert aP.is_attached(engine)
-        # partially attached
-        assert not precision.is_attached(engine)
-
-        precision.detach(engine)
-
-        assert not aP.is_attached(engine)
-        # fully attached
-        assert not precision.is_attached(engine)
-
     """
-
-    def __init__(self, f: Callable, *args, **kwargs):
+    def __init__(self, f, *args, **kwargs):
         self.function = f
         self.args = args
         self.kwargs = kwargs
-        self.engine = None
-        super(MetricsLambda, self).__init__(device="cpu")
+        super(MetricsLambda, self).__init__(device='cpu')
 
     @reinit__is_reduced
-    def reset(self) -> None:
+    def reset(self):
         for i in itertools.chain(self.args, self.kwargs.values()):
             if isinstance(i, Metric):
                 i.reset()
 
     @reinit__is_reduced
-    def update(self, output) -> None:
+    def update(self, output):
         # NB: this method does not recursively update dependency metrics,
         # which might cause duplicate update issue. To update this metric,
         # users should manually update its dependencies.
         pass
 
-    def compute(self) -> Any:
+    def compute(self):
         materialized = [i.compute() if isinstance(i, Metric) else i for i in self.args]
         materialized_kwargs = {k: (v.compute() if isinstance(v, Metric) else v) for k, v in self.kwargs.items()}
         return self.function(*materialized, **materialized_kwargs)
 
-    def _internal_attach(self, engine: Engine, usage: MetricUsage) -> None:
-        self.engine = engine
+    def _internal_attach(self, engine):
         for index, metric in enumerate(itertools.chain(self.args, self.kwargs.values())):
             if isinstance(metric, MetricsLambda):
-                metric._internal_attach(engine, usage)
+                metric._internal_attach(engine)
             elif isinstance(metric, Metric):
-                # NB : metrics is attached partially
-                # We must not use is_attached() but rather if these events exist
-                if not engine.has_event_handler(metric.started, usage.STARTED):
-                    engine.add_event_handler(usage.STARTED, metric.started)
-                if not engine.has_event_handler(metric.iteration_completed, usage.ITERATION_COMPLETED):
-                    engine.add_event_handler(usage.ITERATION_COMPLETED, metric.iteration_completed)
+                if not engine.has_event_handler(metric.started, Events.EPOCH_STARTED):
+                    engine.add_event_handler(Events.EPOCH_STARTED, metric.started)
+                if not engine.has_event_handler(metric.iteration_completed, Events.ITERATION_COMPLETED):
+                    engine.add_event_handler(Events.ITERATION_COMPLETED, metric.iteration_completed)
 
-    def attach(self, engine: Engine, name: str, usage: Union[str, MetricUsage] = EpochWise()) -> None:
-        usage = self._check_usage(usage)
-        # recursively attach all its dependencies (partially)
-        self._internal_attach(engine, usage)
+    def attach(self, engine, name):
+        # recursively attach all its dependencies
+        self._internal_attach(engine)
         # attach only handler on EPOCH_COMPLETED
-        engine.add_event_handler(usage.COMPLETED, self.completed, name)
-
-    def detach(self, engine: Engine, usage: Union[str, MetricUsage] = EpochWise()) -> None:
-        usage = self._check_usage(usage)
-        # remove from engine
-        super(MetricsLambda, self).detach(engine, usage)
-        self.engine = None
-
-    def is_attached(self, engine: Engine, usage: Union[str, MetricUsage] = EpochWise()) -> bool:
-        usage = self._check_usage(usage)
-        # check recursively the dependencies
-        return super(MetricsLambda, self).is_attached(engine, usage) and self._internal_is_attached(engine, usage)
-
-    def _internal_is_attached(self, engine: Engine, usage: MetricUsage) -> bool:
-        # if no engine, metrics is not attached
-        if engine is None:
-            return False
-        # check recursively if metrics are attached
-        is_detached = False
-        for metric in itertools.chain(self.args, self.kwargs.values()):
-            if isinstance(metric, MetricsLambda):
-                if not metric._internal_is_attached(engine, usage):
-                    is_detached = True
-            elif isinstance(metric, Metric):
-                if not engine.has_event_handler(metric.started, usage.STARTED):
-                    is_detached = True
-                if not engine.has_event_handler(metric.iteration_completed, usage.ITERATION_COMPLETED):
-                    is_detached = True
-        return not is_detached
+        engine.add_event_handler(Events.EPOCH_COMPLETED, self.completed, name)

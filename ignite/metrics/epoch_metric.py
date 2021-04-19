@@ -1,11 +1,8 @@
 import warnings
-from typing import Callable, Sequence
 
 import torch
 
 from ignite.metrics.metric import Metric
-
-__all__ = ["EpochMetric"]
 
 
 class EpochMetric(Metric):
@@ -36,21 +33,21 @@ class EpochMetric(Metric):
             you want to compute the metric with respect to one of the outputs.
 
     """
-
-    def __init__(self, compute_fn: Callable, output_transform: Callable = lambda x: x):
+    def __init__(self, compute_fn, output_transform=lambda x: x):
 
         if not callable(compute_fn):
             raise TypeError("Argument compute_fn should be callable.")
 
-        super(EpochMetric, self).__init__(output_transform=output_transform, device="cpu")
+        super(EpochMetric, self).__init__(output_transform=output_transform, device='cpu')
         self.compute_fn = compute_fn
 
-    def reset(self) -> None:
-        self._predictions = []
-        self._targets = []
+    def reset(self):
+        self._predictions = torch.tensor([], dtype=torch.float32)
+        self._targets = torch.tensor([], dtype=torch.long)
 
-    def _check_shape(self, output):
+    def update(self, output):
         y_pred, y = output
+
         if y_pred.ndimension() not in (1, 2):
             raise ValueError("Predictions should be of shape (batch_size, n_classes) or (batch_size, ).")
 
@@ -61,51 +58,25 @@ class EpochMetric(Metric):
             if not torch.equal(y ** 2, y):
                 raise ValueError("Targets should be binary (0 or 1).")
 
-    def _check_type(self, output):
-        y_pred, y = output
-        if len(self._predictions) < 1:
-            return
-        dtype_preds = self._predictions[-1].type()
-        if dtype_preds != y_pred.type():
-            raise ValueError(
-                "Incoherent types between input y_pred and stored predictions: "
-                "{} vs {}".format(dtype_preds, y_pred.type())
-            )
-
-        dtype_targets = self._targets[-1].type()
-        if dtype_targets != y.type():
-            raise ValueError(
-                "Incoherent types between input y and stored targets: " "{} vs {}".format(dtype_targets, y.type())
-            )
-
-    def update(self, output: Sequence[torch.Tensor]) -> None:
-        self._check_shape(output)
-        y_pred, y = output
         if y_pred.ndimension() == 2 and y_pred.shape[1] == 1:
             y_pred = y_pred.squeeze(dim=-1)
 
         if y.ndimension() == 2 and y.shape[1] == 1:
             y = y.squeeze(dim=-1)
 
-        y_pred = y_pred.cpu().clone()
-        y = y.cpu().clone()
+        y_pred = y_pred.to(self._predictions)
+        y = y.to(self._targets)
 
-        self._check_type((y_pred, y))
-        self._predictions.append(y_pred)
-        self._targets.append(y)
+        self._predictions = torch.cat([self._predictions, y_pred], dim=0)
+        self._targets = torch.cat([self._targets, y], dim=0)
 
         # Check once the signature and execution of compute_fn
-        if len(self._predictions) == 1:
+        if self._predictions.shape == y_pred.shape:
             try:
-                self.compute_fn(self._predictions[0], self._targets[0])
+                self.compute_fn(self._predictions, self._targets)
             except Exception as e:
-                warnings.warn("Probably, there can be a problem with `compute_fn`:\n {}.".format(e), EpochMetricWarning)
+                warnings.warn("Probably, there can be a problem with `compute_fn`:\n {}.".format(e),
+                              RuntimeWarning)
 
-    def compute(self) -> None:
-        _prediction_tensor = torch.cat(self._predictions, dim=0)
-        _target_tensor = torch.cat(self._targets, dim=0)
-        return self.compute_fn(_prediction_tensor, _target_tensor)
-
-
-class EpochMetricWarning(UserWarning):
-    pass
+    def compute(self):
+        return self.compute_fn(self._predictions, self._targets)

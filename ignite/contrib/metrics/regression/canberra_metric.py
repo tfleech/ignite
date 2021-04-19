@@ -1,3 +1,5 @@
+from __future__ import division
+
 import torch
 
 from ignite.contrib.metrics.regression._base import _BaseRegression

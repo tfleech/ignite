@@ -1,12 +1,9 @@
-import warnings
-
-from ignite.engine import EventEnum, Events, State
+from enum import Enum
+from ignite.engine import Events, State
 
 
 class CustomPeriodicEvent:
-    """DEPRECATED. Use filtered events instead.
-    Handler to define a custom periodic events as a number of elapsed iterations/epochs
-    for an engine.
+    """Handler to define a custom periodic events as a number of elapsed iterations/epochs for an engine.
 
     When custom periodic event is created and attached to an engine, the following events are fired:
     1) K iterations is specified:
@@ -55,11 +52,6 @@ class CustomPeriodicEvent:
 
     def __init__(self, n_iterations=None, n_epochs=None):
 
-        warnings.warn(
-            "CustomPeriodicEvent is deprecated since 0.4.0 and will be removed in 0.5.0. Use filtered events instead.",
-            DeprecationWarning,
-        )
-
         if n_iterations is not None and (not isinstance(n_iterations, int) or n_iterations < 1):
             raise ValueError("Argument n_iterations should be positive integer number")
 
@@ -81,12 +73,10 @@ class CustomPeriodicEvent:
 
         self.custom_state_attr = "{}_{}".format(prefix, self.period)
         event_name = "{}_{}".format(prefix.upper(), self.period)
-        setattr(
-            self,
-            "Events",
-            EventEnum("Events", " ".join(["{}_STARTED".format(event_name), "{}_COMPLETED".format(event_name)])),
-        )
-
+        setattr(self, "Events", Enum("Events", " ".join([
+            "{}_STARTED".format(event_name),
+            "{}_COMPLETED".format(event_name)])
+        ))
         # Update State.event_to_attr
         for e in self.Events:
             State.event_to_attr[e] = self.custom_state_attr
@@ -111,9 +101,7 @@ class CustomPeriodicEvent:
         engine.register_events(*self.Events)
 
         engine.add_event_handler(Events.STARTED, self._on_started)
-        engine.add_event_handler(
-            getattr(Events, "{}_STARTED".format(self.state_attr.upper())), self._on_periodic_event_started
-        )
-        engine.add_event_handler(
-            getattr(Events, "{}_COMPLETED".format(self.state_attr.upper())), self._on_periodic_event_completed
-        )
+        engine.add_event_handler(getattr(Events, "{}_STARTED".format(self.state_attr.upper())),
+                                 self._on_periodic_event_started)
+        engine.add_event_handler(getattr(Events, "{}_COMPLETED".format(self.state_attr.upper())),
+                                 self._on_periodic_event_completed)

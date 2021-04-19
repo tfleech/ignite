@@ -1,3 +1,5 @@
+from __future__ import division
+
 import torch
 
 from ignite.contrib.metrics.regression._base import _BaseRegressionEpoch
@@ -30,6 +32,6 @@ class MedianRelativeAbsoluteError(_BaseRegressionEpoch):
     __ https://arxiv.org/abs/1809.03006
 
     """
-
     def __init__(self, output_transform=lambda x: x):
-        super(MedianRelativeAbsoluteError, self).__init__(median_relative_absolute_error_compute_fn, output_transform)
+        super(MedianRelativeAbsoluteError, self).__init__(median_relative_absolute_error_compute_fn,
+                                                          output_transform)

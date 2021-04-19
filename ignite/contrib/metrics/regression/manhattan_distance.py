@@ -1,3 +1,5 @@
+from __future__ import division
+
 import torch
 
 from ignite.contrib.metrics.regression._base import _BaseRegression
@@ -19,7 +21,6 @@ class ManhattanDistance(_BaseRegression):
     __ https://arxiv.org/abs/1809.03006
 
     """
-
     def reset(self):
         self._sum_of_errors = 0.0
 

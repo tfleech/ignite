@@ -1,13 +1,10 @@
 import numbers
-from typing import Any, Callable, Optional, Sequence, Union
 
 import torch
 
+from ignite.metrics import Metric, MetricsLambda
 from ignite.exceptions import NotComputableError
-from ignite.metrics.metric import Metric, reinit__is_reduced, sync_all_reduce
-from ignite.metrics.metrics_lambda import MetricsLambda
-
-__all__ = ["ConfusionMatrix", "mIoU", "IoU", "DiceCoefficient", "cmAccuracy", "cmPrecision", "cmRecall"]
+from ignite.metrics.metric import sync_all_reduce, reinit__is_reduced
 
 
 class ConfusionMatrix(Metric):
@@ -42,13 +39,7 @@ class ConfusionMatrix(Metric):
 
     """
 
-    def __init__(
-        self,
-        num_classes: int,
-        average: Optional[str] = None,
-        output_transform: Callable = lambda x: x,
-        device: Optional[Union[str, torch.device]] = None,
-    ):
+    def __init__(self, num_classes, average=None, output_transform=lambda x: x, device=None):
         if average is not None and average not in ("samples", "recall", "precision"):
             raise ValueError("Argument average can None or one of ['samples', 'recall', 'precision']")
 
@@ -59,29 +50,27 @@ class ConfusionMatrix(Metric):
         super(ConfusionMatrix, self).__init__(output_transform=output_transform, device=device)
 
     @reinit__is_reduced
-    def reset(self) -> None:
-        self.confusion_matrix = torch.zeros(self.num_classes, self.num_classes, dtype=torch.int64, device=self._device)
+    def reset(self):
+        self.confusion_matrix = torch.zeros(self.num_classes, self.num_classes,
+                                            dtype=torch.int64,
+                                            device=self._device)
         self._num_examples = 0
 
-    def _check_shape(self, output: Sequence[torch.Tensor]) -> None:
+    def _check_shape(self, output):
         y_pred, y = output
 
         if y_pred.ndimension() < 2:
-            raise ValueError(
-                "y_pred must have shape (batch_size, num_categories, ...), " "but given {}".format(y_pred.shape)
-            )
+            raise ValueError("y_pred must have shape (batch_size, num_categories, ...), "
+                             "but given {}".format(y_pred.shape))
 
         if y_pred.shape[1] != self.num_classes:
-            raise ValueError(
-                "y_pred does not have correct number of categories: {} vs {}".format(y_pred.shape[1], self.num_classes)
-            )
+            raise ValueError("y_pred does not have correct number of categories: {} vs {}"
+                             .format(y_pred.shape[1], self.num_classes))
 
         if not (y.ndimension() + 1 == y_pred.ndimension()):
-            raise ValueError(
-                "y_pred must have shape (batch_size, num_categories, ...) and y must have "
-                "shape of (batch_size, ...), "
-                "but given {} vs {}.".format(y.shape, y_pred.shape)
-            )
+            raise ValueError("y_pred must have shape (batch_size, num_categories, ...) and y must have "
+                             "shape of (batch_size, ...), "
+                             "but given {} vs {}.".format(y.shape, y_pred.shape))
 
         y_shape = y.shape
         y_pred_shape = y_pred.shape
@@ -93,7 +82,7 @@ class ConfusionMatrix(Metric):
             raise ValueError("y and y_pred must have compatible shapes.")
 
     @reinit__is_reduced
-    def update(self, output: Sequence[torch.Tensor]) -> None:
+    def update(self, output):
         self._check_shape(output)
         y_pred, y = output
 
@@ -111,22 +100,22 @@ class ConfusionMatrix(Metric):
         m = torch.bincount(indices, minlength=self.num_classes ** 2).reshape(self.num_classes, self.num_classes)
         self.confusion_matrix += m.to(self.confusion_matrix)
 
-    @sync_all_reduce("confusion_matrix", "_num_examples")
-    def compute(self) -> torch.Tensor:
+    @sync_all_reduce('confusion_matrix', '_num_examples')
+    def compute(self):
         if self._num_examples == 0:
-            raise NotComputableError("Confusion matrix must have at least one example before it can be computed.")
+            raise NotComputableError('Confusion matrix must have at least one example before it can be computed.')
         if self.average:
             self.confusion_matrix = self.confusion_matrix.float()
             if self.average == "samples":
                 return self.confusion_matrix / self._num_examples
             elif self.average == "recall":
-                return self.confusion_matrix / (self.confusion_matrix.sum(dim=1).unsqueeze(1) + 1e-15)
+                return self.confusion_matrix / (self.confusion_matrix.sum(dim=1) + 1e-15)
             elif self.average == "precision":
                 return self.confusion_matrix / (self.confusion_matrix.sum(dim=0) + 1e-15)
         return self.confusion_matrix
 
 
-def IoU(cm: ConfusionMatrix, ignore_index: Optional[int] = None) -> MetricsLambda:
+def IoU(cm, ignore_index=None):
     """Calculates Intersection over Union using :class:`~ignite.metrics.ConfusionMatrix` metric.
 
     Args:
@@ -163,9 +152,8 @@ def IoU(cm: ConfusionMatrix, ignore_index: Optional[int] = None) -> MetricsLambd
 
         def ignore_index_fn(iou_vector):
             if ignore_index >= len(iou_vector):
-                raise ValueError(
-                    "ignore_index {} is larger than the length of IoU vector {}".format(ignore_index, len(iou_vector))
-                )
+                raise ValueError("ignore_index {} is larger than the length of IoU vector {}"
+                                 .format(ignore_index, len(iou_vector)))
             indices = list(range(len(iou_vector)))
             indices.remove(ignore_index)
             return iou_vector[indices]
@@ -175,7 +163,7 @@ def IoU(cm: ConfusionMatrix, ignore_index: Optional[int] = None) -> MetricsLambd
         return iou
 
 
-def mIoU(cm: ConfusionMatrix, ignore_index: Optional[int] = None) -> MetricsLambda:
+def mIoU(cm, ignore_index=None):
     """Calculates mean Intersection over Union using :class:`~ignite.metrics.ConfusionMatrix` metric.
 
     Args:
@@ -202,7 +190,7 @@ def mIoU(cm: ConfusionMatrix, ignore_index: Optional[int] = None) -> MetricsLamb
     return IoU(cm=cm, ignore_index=ignore_index).mean()
 
 
-def cmAccuracy(cm: ConfusionMatrix) -> MetricsLambda:
+def cmAccuracy(cm):
     """Calculates accuracy using :class:`~ignite.metrics.ConfusionMatrix` metric.
 
     Args:
@@ -216,7 +204,7 @@ def cmAccuracy(cm: ConfusionMatrix) -> MetricsLambda:
     return cm.diag().sum() / (cm.sum() + 1e-15)
 
 
-def cmPrecision(cm: ConfusionMatrix, average: bool = True) -> MetricsLambda:
+def cmPrecision(cm, average=True):
     """Calculates precision using :class:`~ignite.metrics.ConfusionMatrix` metric.
 
     Args:
@@ -234,7 +222,7 @@ def cmPrecision(cm: ConfusionMatrix, average: bool = True) -> MetricsLambda:
     return precision
 
 
-def cmRecall(cm: ConfusionMatrix, average: bool = True) -> MetricsLambda:
+def cmRecall(cm, average=True):
     """
     Calculates recall using :class:`~ignite.metrics.ConfusionMatrix` metric.
     Args:
@@ -252,7 +240,7 @@ def cmRecall(cm: ConfusionMatrix, average: bool = True) -> MetricsLambda:
     return recall
 
 
-def DiceCoefficient(cm: ConfusionMatrix, ignore_index: Optional[int] = None) -> MetricsLambda:
+def DiceCoefficient(cm, ignore_index=None):
     """Calculates Dice Coefficient for a given :class:`~ignite.metrics.ConfusionMatrix` metric.
 
     Args:
@@ -273,11 +261,10 @@ def DiceCoefficient(cm: ConfusionMatrix, ignore_index: Optional[int] = None) -> 
 
     if ignore_index is not None:
 
-        def ignore_index_fn(dice_vector: torch.Tensor) -> torch.Tensor:
+        def ignore_index_fn(dice_vector):
             if ignore_index >= len(dice_vector):
-                raise ValueError(
-                    "ignore_index {} is larger than the length of Dice vector {}".format(ignore_index, len(dice_vector))
-                )
+                raise ValueError("ignore_index {} is larger than the length of Dice vector {}"
+                                 .format(ignore_index, len(dice_vector)))
             indices = list(range(len(dice_vector)))
             indices.remove(ignore_index)
             return dice_vector[indices]

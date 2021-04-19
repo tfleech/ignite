@@ -1,9 +1,6 @@
 from time import perf_counter
-from typing import Optional
 
-from ignite.engine import Engine, Events
-
-__all__ = ["Timer"]
+from ignite.engine import Events
 
 
 class Timer:
@@ -76,22 +73,15 @@ class Timer:
         ...              step=Events.ITERATION_COMPLETED)
     """
 
-    def __init__(self, average: bool = False):
+    def __init__(self, average=False):
         self._average = average
         self._t0 = perf_counter()
 
-        self.total = 0.0
-        self.step_count = 0.0
+        self.total = 0.
+        self.step_count = 0.
         self.running = True
 
-    def attach(
-        self,
-        engine: Engine,
-        start: Events = Events.STARTED,
-        pause: Events = Events.COMPLETED,
-        resume: Optional[Events] = None,
-        step: Optional[Events] = None,
-    ):
+    def attach(self, engine, start=Events.STARTED, pause=Events.COMPLETED, resume=None, step=None):
         """ Register callbacks to control the timer.
 
         Args:
@@ -126,30 +116,30 @@ class Timer:
         self.__init__(self._average)
         return self
 
-    def pause(self, *args) -> None:
+    def pause(self, *args):
         if self.running:
             self.total += self._elapsed()
             self.running = False
 
-    def resume(self, *args) -> None:
+    def resume(self, *args):
         if not self.running:
             self.running = True
             self._t0 = perf_counter()
 
-    def value(self) -> float:
+    def value(self):
         total = self.total
         if self.running:
             total += self._elapsed()
 
         if self._average:
-            denominator = max(self.step_count, 1.0)
+            denominator = max(self.step_count, 1.)
         else:
-            denominator = 1.0
+            denominator = 1.
 
         return total / denominator
 
-    def step(self, *args) -> None:
-        self.step_count += 1.0
+    def step(self, *args):
+        self.step_count += 1.
 
-    def _elapsed(self) -> float:
+    def _elapsed(self):
         return perf_counter() - self._t0
