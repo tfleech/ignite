@@ -1,10 +1,10 @@
 import numbers
 
-from ignite.metrics import Metric
-from ignite.metrics.metric import sync_all_reduce, reinit__is_reduced
-from ignite.exceptions import NotComputableError
-
 import torch
+
+from ignite.exceptions import NotComputableError
+from ignite.metrics import Metric
+from ignite.metrics.metric import reinit__is_reduced, sync_all_reduce
 
 
 class VariableAccumulation(Metric):
@@ -35,16 +35,21 @@ class VariableAccumulation(Metric):
             initialized and available, device is set to `cuda`.
 
     """
+
     _required_output_keys = None
 
     def __init__(self, op, output_transform=lambda x: x, device=None):
         if not callable(op):
-            raise TypeError("Argument op should be a callable, but given {}".format(type(op)))
+            raise TypeError(
+                "Argument op should be a callable, but given {}".format(type(op))
+            )
         self.accumulator = None
         self.num_examples = None
         self._op = op
 
-        super(VariableAccumulation, self).__init__(output_transform=output_transform, device=device)
+        super(VariableAccumulation, self).__init__(
+            output_transform=output_transform, device=device
+        )
 
     @reinit__is_reduced
     def reset(self):
@@ -53,7 +58,11 @@ class VariableAccumulation(Metric):
 
     def _check_output_type(self, output):
         if not (isinstance(output, numbers.Number) or isinstance(output, torch.Tensor)):
-            raise TypeError("Output should be a number or torch.Tensor, but given {}".format(type(output)))
+            raise TypeError(
+                "Output should be a number or torch.Tensor, but given {}".format(
+                    type(output)
+                )
+            )
 
     @reinit__is_reduced
     def update(self, output):
@@ -65,12 +74,12 @@ class VariableAccumulation(Metric):
                 output = output.to(self._device)
 
         self.accumulator = self._op(self.accumulator, output)
-        if hasattr(output, 'shape'):
+        if hasattr(output, "shape"):
             self.num_examples += output.shape[0] if len(output.shape) > 1 else 1
         else:
             self.num_examples += 1
 
-    @sync_all_reduce('accumulator', 'num_examples')
+    @sync_all_reduce("accumulator", "num_examples")
     def compute(self):
         return [self.accumulator, self.num_examples]
 
@@ -115,19 +124,22 @@ class Average(VariableAccumulation):
     """
 
     def __init__(self, output_transform=lambda x: x, device=None):
-
         def _mean_op(a, x):
             if isinstance(x, torch.Tensor) and x.ndim > 1:
                 x = x.sum(dim=0)
             return a + x
 
-        super(Average, self).__init__(op=_mean_op, output_transform=output_transform, device=device)
+        super(Average, self).__init__(
+            op=_mean_op, output_transform=output_transform, device=device
+        )
 
-    @sync_all_reduce('accumulator', 'num_examples')
+    @sync_all_reduce("accumulator", "num_examples")
     def compute(self):
         if self.num_examples < 1:
-            raise NotComputableError("{} must have at least one example before"
-                                     " it can be computed.".format(self.__class__.__name__))
+            raise NotComputableError(
+                "{} must have at least one example before"
+                " it can be computed.".format(self.__class__.__name__)
+            )
 
         return self.accumulator / self.num_examples
 
@@ -160,7 +172,6 @@ class GeometricAverage(VariableAccumulation):
     """
 
     def __init__(self, output_transform=lambda x: x, device=None):
-
         def _geom_op(a, x):
             if not isinstance(x, torch.Tensor):
                 x = torch.tensor(x)
@@ -169,12 +180,16 @@ class GeometricAverage(VariableAccumulation):
                 x = x.sum(dim=0)
             return a + x
 
-        super(GeometricAverage, self).__init__(op=_geom_op, output_transform=output_transform, device=device)
+        super(GeometricAverage, self).__init__(
+            op=_geom_op, output_transform=output_transform, device=device
+        )
 
-    @sync_all_reduce('accumulator', 'num_examples')
+    @sync_all_reduce("accumulator", "num_examples")
     def compute(self):
         if self.num_examples < 1:
-            raise NotComputableError("{} must have at least one example before"
-                                     " it can be computed.".format(self.__class__.__name__))
+            raise NotComputableError(
+                "{} must have at least one example before"
+                " it can be computed.".format(self.__class__.__name__)
+            )
 
         return torch.exp(self.accumulator / self.num_examples)

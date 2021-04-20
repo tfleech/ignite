@@ -1,19 +1,20 @@
 from __future__ import division
 
-from ignite.metrics import Metric
-from ignite.metrics.metric import sync_all_reduce, reinit__is_reduced
-from ignite.exceptions import NotComputableError
-
 import torch
+
+from ignite.exceptions import NotComputableError
+from ignite.metrics import Metric
+from ignite.metrics.metric import reinit__is_reduced, sync_all_reduce
 
 
 class _BaseClassification(Metric):
-
     def __init__(self, output_transform=lambda x: x, is_multilabel=False, device=None):
         self._is_multilabel = is_multilabel
         self._type = None
         self._num_classes = None
-        super(_BaseClassification, self).__init__(output_transform=output_transform, device=device)
+        super(_BaseClassification, self).__init__(
+            output_transform=output_transform, device=device
+        )
 
     def reset(self):
         self._type = None
@@ -22,10 +23,15 @@ class _BaseClassification(Metric):
     def _check_shape(self, output):
         y_pred, y = output
 
-        if not (y.ndimension() == y_pred.ndimension() or y.ndimension() + 1 == y_pred.ndimension()):
-            raise ValueError("y must have shape of (batch_size, ...) and y_pred must have "
-                             "shape of (batch_size, num_categories, ...) or (batch_size, ...), "
-                             "but given {} vs {}.".format(y.shape, y_pred.shape))
+        if not (
+            y.ndimension() == y_pred.ndimension()
+            or y.ndimension() + 1 == y_pred.ndimension()
+        ):
+            raise ValueError(
+                "y must have shape of (batch_size, ...) and y_pred must have "
+                "shape of (batch_size, num_categories, ...) or (batch_size, ...), "
+                "but given {} vs {}.".format(y.shape, y_pred.shape)
+            )
 
         y_shape = y.shape
         y_pred_shape = y_pred.shape
@@ -36,8 +42,12 @@ class _BaseClassification(Metric):
         if not (y_shape == y_pred_shape):
             raise ValueError("y and y_pred must have compatible shapes.")
 
-        if self._is_multilabel and not (y.shape == y_pred.shape and y.ndimension() > 1 and y.shape[1] != 1):
-            raise ValueError("y and y_pred must have same shape of (batch_size, num_categories, ...).")
+        if self._is_multilabel and not (
+            y.shape == y_pred.shape and y.ndimension() > 1 and y.shape[1] != 1
+        ):
+            raise ValueError(
+                "y and y_pred must have same shape of (batch_size, num_categories, ...)."
+            )
 
     def _check_binary_multilabel_cases(self, output):
         y_pred, y = output
@@ -46,7 +56,9 @@ class _BaseClassification(Metric):
             raise ValueError("For binary cases, y must be comprised of 0's and 1's.")
 
         if not torch.equal(y_pred, y_pred ** 2):
-            raise ValueError("For binary cases, y_pred must be comprised of 0's and 1's.")
+            raise ValueError(
+                "For binary cases, y_pred must be comprised of 0's and 1's."
+            )
 
     def _check_type(self, output):
         y_pred, y = output
@@ -68,17 +80,26 @@ class _BaseClassification(Metric):
                 update_type = "binary"
                 num_classes = 1
         else:
-            raise RuntimeError("Invalid shapes of y (shape={}) and y_pred (shape={}), check documentation."
-                               " for expected shapes of y and y_pred.".format(y.shape, y_pred.shape))
+            raise RuntimeError(
+                "Invalid shapes of y (shape={}) and y_pred (shape={}), check documentation."
+                " for expected shapes of y and y_pred.".format(y.shape, y_pred.shape)
+            )
         if self._type is None:
             self._type = update_type
             self._num_classes = num_classes
         else:
             if self._type != update_type:
-                raise RuntimeError("Input data type has changed from {} to {}.".format(self._type, update_type))
+                raise RuntimeError(
+                    "Input data type has changed from {} to {}.".format(
+                        self._type, update_type
+                    )
+                )
             if self._num_classes != num_classes:
-                raise ValueError("Input data number of classes has changed from {} to {}"
-                                 .format(self._num_classes, num_classes))
+                raise ValueError(
+                    "Input data number of classes has changed from {} to {}".format(
+                        self._num_classes, num_classes
+                    )
+                )
 
 
 class Accuracy(_BaseClassification):
@@ -119,9 +140,11 @@ class Accuracy(_BaseClassification):
     def __init__(self, output_transform=lambda x: x, is_multilabel=False, device=None):
         self._num_correct = None
         self._num_examples = None
-        super(Accuracy, self).__init__(output_transform=output_transform,
-                                       is_multilabel=is_multilabel,
-                                       device=device)
+        super(Accuracy, self).__init__(
+            output_transform=output_transform,
+            is_multilabel=is_multilabel,
+            device=device,
+        )
 
     @reinit__is_reduced
     def reset(self):
@@ -154,5 +177,7 @@ class Accuracy(_BaseClassification):
     @sync_all_reduce("_num_examples", "_num_correct")
     def compute(self):
         if self._num_examples == 0:
-            raise NotComputableError('Accuracy must have at least one example before it can be computed.')
+            raise NotComputableError(
+                "Accuracy must have at least one example before it can be computed."
+            )
         return self._num_correct / self._num_examples
