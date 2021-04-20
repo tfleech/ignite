@@ -1,7 +1,9 @@
 from ignite.metrics import Precision, Recall
 
 
-def Fbeta(beta, average=True, precision=None, recall=None, output_transform=None, device=None):
+def Fbeta(
+    beta, average=True, precision=None, recall=None, output_transform=None, device=None
+):
     """Calculates F-beta score
 
     Args:
@@ -25,24 +27,43 @@ def Fbeta(beta, average=True, precision=None, recall=None, output_transform=None
         raise ValueError("Beta should be a positive integer, but given {}".format(beta))
 
     if precision is not None and output_transform is not None:
-        raise ValueError("If precision argument is provided, output_transform should be None")
+        raise ValueError(
+            "If precision argument is provided, output_transform should be None"
+        )
 
     if recall is not None and output_transform is not None:
-        raise ValueError("If recall argument is provided, output_transform should be None")
+        raise ValueError(
+            "If recall argument is provided, output_transform should be None"
+        )
 
     if precision is None:
-        precision = Precision(output_transform=(lambda x: x) if output_transform is None else output_transform,
-                              average=False, device=device)
+        precision = Precision(
+            output_transform=(lambda x: x)
+            if output_transform is None
+            else output_transform,
+            average=False,
+            device=device,
+        )
     elif precision._average:
         raise ValueError("Input precision metric should have average=False")
 
     if recall is None:
-        recall = Recall(output_transform=(lambda x: x) if output_transform is None else output_transform,
-                        average=False, device=device)
+        recall = Recall(
+            output_transform=(lambda x: x)
+            if output_transform is None
+            else output_transform,
+            average=False,
+            device=device,
+        )
     elif recall._average:
         raise ValueError("Input recall metric should have average=False")
 
-    fbeta = (1.0 + beta ** 2) * precision * recall / (beta ** 2 * precision + recall + 1e-15)
+    fbeta = (
+        (1.0 + beta ** 2)
+        * precision
+        * recall
+        / (beta ** 2 * precision + recall + 1e-15)
+    )
 
     if average:
         fbeta = fbeta.mean().item()
