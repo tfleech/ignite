@@ -2,7 +2,7 @@ from __future__ import division
 
 from ignite.exceptions import NotComputableError
 from ignite.metrics import Metric
-from ignite.metrics.metric import reinit__is_reduced, sync_all_reduce
+from ignite.metrics.metric import sync_all_reduce, reinit__is_reduced
 
 
 class Loss(Metric):
@@ -29,16 +29,10 @@ class Loss(Metric):
             initialized and available, device is set to `cuda`.
 
     """
-
     _required_output_keys = None
 
-    def __init__(
-        self,
-        loss_fn,
-        output_transform=lambda x: x,
-        batch_size=lambda x: len(x),
-        device=None,
-    ):
+    def __init__(self, loss_fn, output_transform=lambda x: x,
+                 batch_size=lambda x: len(x), device=None):
         super(Loss, self).__init__(output_transform, device=device)
         self._loss_fn = loss_fn
         self._batch_size = batch_size
@@ -58,7 +52,7 @@ class Loss(Metric):
         average_loss = self._loss_fn(y_pred, y, **kwargs)
 
         if len(average_loss.shape) != 0:
-            raise ValueError("loss_fn did not return the average loss.")
+            raise ValueError('loss_fn did not return the average loss.')
 
         N = self._batch_size(y)
         self._sum += average_loss.item() * N
@@ -68,6 +62,5 @@ class Loss(Metric):
     def compute(self):
         if self._num_examples == 0:
             raise NotComputableError(
-                "Loss must have at least one example before it can be computed."
-            )
+                'Loss must have at least one example before it can be computed.')
         return self._sum / self._num_examples

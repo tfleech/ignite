@@ -1,9 +1,10 @@
-import warnings
 from abc import abstractmethod
+
+import warnings
 
 import torch
 
-from ignite.metrics import EpochMetric, Metric
+from ignite.metrics import Metric, EpochMetric
 
 
 class _BaseRegression(Metric):
@@ -14,25 +15,16 @@ class _BaseRegression(Metric):
     def update(self, output):
         y_pred, y = output
         if y_pred.shape != y.shape:
-            raise ValueError(
-                "Input data shapes should be the same, but given {} and {}".format(
-                    y_pred.shape, y.shape
-                )
-            )
+            raise ValueError("Input data shapes should be the same, but given {} and {}"
+                             .format(y_pred.shape, y.shape))
 
         c1 = y_pred.ndimension() == 2 and y_pred.shape[1] == 1
         if not (y_pred.ndimension() == 1 or c1):
-            raise ValueError(
-                "Input y_pred should have shape (N,) or (N, 1), but given {}".format(
-                    y_pred.shape
-                )
-            )
+            raise ValueError("Input y_pred should have shape (N,) or (N, 1), but given {}".format(y_pred.shape))
 
         c2 = y.ndimension() == 2 and y.shape[1] == 1
         if not (y.ndimension() == 1 or c2):
-            raise ValueError(
-                "Input y should have shape (N,) or (N, 1), but given {}".format(y.shape)
-            )
+            raise ValueError("Input y should have shape (N,) or (N, 1), but given {}".format(y.shape))
 
         if c1:
             y_pred = y_pred.squeeze(dim=-1)
@@ -53,9 +45,7 @@ class _BaseRegressionEpoch(_BaseRegression, EpochMetric):
     # Class internally stores complete history of predictions and targets of type float32.
 
     def __init__(self, compute_fn, output_transform=lambda x: x):
-        EpochMetric.__init__(
-            self, compute_fn=compute_fn, output_transform=output_transform
-        )
+        EpochMetric.__init__(self, compute_fn=compute_fn, output_transform=output_transform)
 
     def reset(self):
         self._predictions = torch.tensor([], dtype=torch.float32)
@@ -74,9 +64,5 @@ class _BaseRegressionEpoch(_BaseRegression, EpochMetric):
             try:
                 self.compute_fn(self._predictions, self._targets)
             except Exception as e:
-                warnings.warn(
-                    "Probably, there can be a problem with `compute_fn`:\n {}".format(
-                        e
-                    ),
-                    RuntimeWarning,
-                )
+                warnings.warn("Probably, there can be a problem with `compute_fn`:\n {}".format(e),
+                              RuntimeWarning)

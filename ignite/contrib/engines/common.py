@@ -1,40 +1,29 @@
-import warnings
-from collections.abc import Mapping, Sequence
 from functools import partial
+import warnings
+
+from collections.abc import Sequence, Mapping
 
 import torch
 import torch.distributed as dist
 
-import ignite.contrib.handlers.mlflow_logger as mlflow_logger_module
-import ignite.contrib.handlers.polyaxon_logger as polyaxon_logger_module
-import ignite.contrib.handlers.tensorboard_logger as tb_logger_module
-from ignite.contrib.handlers import (
-    MLflowLogger,
-    PolyaxonLogger,
-    ProgressBar,
-    TensorboardLogger,
-    global_step_from_engine,
-)
-from ignite.contrib.metrics import GpuInfo
 from ignite.engine import Engine, Events
-from ignite.handlers import EarlyStopping, ModelCheckpoint, TerminateOnNan
 from ignite.metrics import RunningAverage
+from ignite.handlers import TerminateOnNan, ModelCheckpoint, EarlyStopping
+from ignite.contrib.metrics import GpuInfo
+from ignite.contrib.handlers import ProgressBar
+from ignite.contrib.handlers import TensorboardLogger, global_step_from_engine
+import ignite.contrib.handlers.tensorboard_logger as tb_logger_module
+from ignite.contrib.handlers import MLflowLogger
+import ignite.contrib.handlers.mlflow_logger as mlflow_logger_module
+from ignite.contrib.handlers import PolyaxonLogger
+import ignite.contrib.handlers.polyaxon_logger as polyaxon_logger_module
 
 
-def setup_common_training_handlers(
-    trainer,
-    train_sampler=None,
-    to_save=None,
-    save_every_iters=1000,
-    output_path=None,
-    lr_scheduler=None,
-    with_gpu_stats=False,
-    output_names=None,
-    with_pbars=True,
-    with_pbar_on_iters=True,
-    log_every_iters=100,
-    device="cuda",
-):
+def setup_common_training_handlers(trainer, train_sampler=None,
+                                   to_save=None, save_every_iters=1000, output_path=None,
+                                   lr_scheduler=None, with_gpu_stats=False,
+                                   output_names=None, with_pbars=True, with_pbar_on_iters=True, log_every_iters=100,
+                                   device='cuda'):
     """Helper method to setup trainer with common handlers (it also supports distributed configuration):
         - :class:`~ignite.handlers.TerminateOnNan`
         - handler to setup learning rate scheduling
@@ -63,55 +52,34 @@ def setup_common_training_handlers(
             epoch-wise progress bar.
         device (str of torch.device, optional): Optional device specification in case of distributed computation usage.
     """
-    kwargs = dict(
-        to_save=to_save,
-        save_every_iters=save_every_iters,
-        output_path=output_path,
-        lr_scheduler=lr_scheduler,
-        with_gpu_stats=with_gpu_stats,
-        output_names=output_names,
-        with_pbars=with_pbars,
-        with_pbar_on_iters=with_pbar_on_iters,
-        log_every_iters=log_every_iters,
-        device=device,
-    )
+    kwargs = dict(to_save=to_save,
+                  save_every_iters=save_every_iters, output_path=output_path,
+                  lr_scheduler=lr_scheduler, with_gpu_stats=with_gpu_stats,
+                  output_names=output_names, with_pbars=with_pbars,
+                  with_pbar_on_iters=with_pbar_on_iters,
+                  log_every_iters=log_every_iters, device=device)
     if dist.is_available() and dist.is_initialized():
-        return _setup_common_distrib_training_handlers(
-            trainer, train_sampler=train_sampler, **kwargs
-        )
+        return _setup_common_distrib_training_handlers(trainer, train_sampler=train_sampler, **kwargs)
     else:
         if train_sampler is not None:
-            warnings.warn(
-                "Argument train_sampler distributed sampler used to call `set_epoch` method on epoch "
-                "started event, but no distributed setting detected",
-                UserWarning,
-            )
+            warnings.warn("Argument train_sampler distributed sampler used to call `set_epoch` method on epoch "
+                          "started event, but no distributed setting detected", UserWarning)
         return _setup_common_training_handlers(trainer, **kwargs)
 
 
 setup_common_distrib_training_handlers = setup_common_training_handlers
 
 
-def _setup_common_training_handlers(
-    trainer,
-    to_save=None,
-    save_every_iters=1000,
-    output_path=None,
-    lr_scheduler=None,
-    with_gpu_stats=True,
-    output_names=None,
-    with_pbars=True,
-    with_pbar_on_iters=True,
-    log_every_iters=100,
-    device="cuda",
-):
+def _setup_common_training_handlers(trainer,
+                                    to_save=None, save_every_iters=1000, output_path=None,
+                                    lr_scheduler=None, with_gpu_stats=True,
+                                    output_names=None, with_pbars=True, with_pbar_on_iters=True,
+                                    log_every_iters=100, device='cuda'):
     trainer.add_event_handler(Events.ITERATION_COMPLETED, TerminateOnNan())
 
     if lr_scheduler is not None:
         if isinstance(lr_scheduler, torch.optim.lr_scheduler._LRScheduler):
-            trainer.add_event_handler(
-                Events.ITERATION_COMPLETED, lambda engine: lr_scheduler.step()
-            )
+            trainer.add_event_handler(Events.ITERATION_COMPLETED, lambda engine: lr_scheduler.step())
         else:
             trainer.add_event_handler(Events.ITERATION_STARTED, lr_scheduler)
 
@@ -119,24 +87,12 @@ def _setup_common_training_handlers(
 
     if to_save is not None:
         if output_path is None:
-            raise ValueError(
-                "If to_save argument is provided then output_path argument should be also defined"
-            )
-        checkpoint_handler = ModelCheckpoint(
-            dirname=output_path, filename_prefix="training"
-        )
-        trainer.add_event_handler(
-            Events.ITERATION_COMPLETED(every=save_every_iters),
-            checkpoint_handler,
-            to_save,
-        )
+            raise ValueError("If to_save argument is provided then output_path argument should be also defined")
+        checkpoint_handler = ModelCheckpoint(dirname=output_path, filename_prefix="training")
+        trainer.add_event_handler(Events.ITERATION_COMPLETED(every=save_every_iters), checkpoint_handler, to_save)
 
     if with_gpu_stats:
-        GpuInfo().attach(
-            trainer,
-            name="gpu",
-            event_name=Events.ITERATION_COMPLETED(every=log_every_iters),
-        )
+        GpuInfo().attach(trainer, name='gpu', event_name=Events.ITERATION_COMPLETED(every=log_every_iters))
 
     if output_names is not None:
 
@@ -148,64 +104,38 @@ def _setup_common_training_handlers(
             elif isinstance(x, torch.Tensor):
                 return x
             else:
-                raise ValueError(
-                    "Unhandled type of update_function's output. "
-                    "It should either mapping or sequence, but given {}".format(type(x))
-                )
+                raise ValueError("Unhandled type of update_function's output. "
+                                 "It should either mapping or sequence, but given {}".format(type(x)))
 
         for i, n in enumerate(output_names):
-            RunningAverage(
-                output_transform=partial(output_transform, index=i, name=n),
-                epoch_bound=False,
-                device=device,
-            ).attach(trainer, n)
+            RunningAverage(output_transform=partial(output_transform, index=i, name=n),
+                           epoch_bound=False, device=device).attach(trainer, n)
 
     if with_pbars:
         if with_pbar_on_iters:
-            ProgressBar(persist=False).attach(
-                trainer,
-                metric_names="all",
-                event_name=Events.ITERATION_COMPLETED(every=log_every_iters),
-            )
+            ProgressBar(persist=False).attach(trainer, metric_names='all',
+                                              event_name=Events.ITERATION_COMPLETED(every=log_every_iters))
 
-        ProgressBar(persist=True, bar_format="").attach(
-            trainer,
-            event_name=Events.EPOCH_STARTED,
-            closing_event_name=Events.COMPLETED,
-        )
+        ProgressBar(persist=True, bar_format="").attach(trainer,
+                                                        event_name=Events.EPOCH_STARTED,
+                                                        closing_event_name=Events.COMPLETED)
 
 
-def _setup_common_distrib_training_handlers(
-    trainer,
-    train_sampler=None,
-    to_save=None,
-    save_every_iters=1000,
-    output_path=None,
-    lr_scheduler=None,
-    with_gpu_stats=True,
-    output_names=None,
-    with_pbars=True,
-    with_pbar_on_iters=True,
-    log_every_iters=100,
-    device="cuda",
-):
+def _setup_common_distrib_training_handlers(trainer, train_sampler=None,
+                                            to_save=None, save_every_iters=1000, output_path=None,
+                                            lr_scheduler=None, with_gpu_stats=True,
+                                            output_names=None, with_pbars=True, with_pbar_on_iters=True,
+                                            log_every_iters=100, device='cuda'):
 
     if not (dist.is_available() and dist.is_initialized()):
-        raise RuntimeError(
-            "Distributed setting is not initialized, please call `dist.init_process_group` before."
-        )
+        raise RuntimeError("Distributed setting is not initialized, please call `dist.init_process_group` before.")
 
-    _setup_common_training_handlers(
-        trainer,
-        to_save=None,
-        lr_scheduler=lr_scheduler,
-        with_gpu_stats=with_gpu_stats,
-        output_names=output_names,
-        with_pbars=(dist.get_rank() == 0) and with_pbars,
-        with_pbar_on_iters=with_pbar_on_iters,
-        log_every_iters=log_every_iters,
-        device=device,
-    )
+    _setup_common_training_handlers(trainer, to_save=None,
+                                    lr_scheduler=lr_scheduler, with_gpu_stats=with_gpu_stats,
+                                    output_names=output_names,
+                                    with_pbars=(dist.get_rank() == 0) and with_pbars,
+                                    with_pbar_on_iters=with_pbar_on_iters,
+                                    log_every_iters=log_every_iters, device=device)
 
     if train_sampler is not None:
         if not callable(getattr(train_sampler, "set_epoch", None)):
@@ -218,17 +148,9 @@ def _setup_common_distrib_training_handlers(
     if dist.get_rank() == 0:
         if to_save is not None:
             if output_path is None:
-                raise ValueError(
-                    "If to_save argument is provided then output_path argument should be also defined"
-                )
-            checkpoint_handler = ModelCheckpoint(
-                dirname=output_path, filename_prefix="training"
-            )
-            trainer.add_event_handler(
-                Events.ITERATION_COMPLETED(every=save_every_iters),
-                checkpoint_handler,
-                to_save,
-            )
+                raise ValueError("If to_save argument is provided then output_path argument should be also defined")
+            checkpoint_handler = ModelCheckpoint(dirname=output_path, filename_prefix="training")
+            trainer.add_event_handler(Events.ITERATION_COMPLETED(every=save_every_iters), checkpoint_handler, to_save)
 
     return trainer
 
@@ -236,36 +158,27 @@ def _setup_common_distrib_training_handlers(
 def empty_cuda_cache(_):
     torch.cuda.empty_cache()
     import gc
-
     gc.collect()
 
 
-def setup_any_logging(
-    logger, logger_module, trainer, optimizers, evaluators, log_every_iters
-):
+def setup_any_logging(logger, logger_module, trainer, optimizers, evaluators, log_every_iters):
 
     if optimizers is not None:
         from torch.optim.optimizer import Optimizer
 
         if not isinstance(optimizers, (Optimizer, Mapping)):
-            raise TypeError(
-                "Argument optimizers should be either a single optimizer or a dictionary or optimizers"
-            )
+            raise TypeError("Argument optimizers should be either a single optimizer or a dictionary or optimizers")
 
     if evaluators is not None:
         if not isinstance(evaluators, (Engine, Mapping)):
-            raise TypeError(
-                "Argument optimizers should be either a single optimizer or a dictionary or optimizers"
-            )
+            raise TypeError("Argument optimizers should be either a single optimizer or a dictionary or optimizers")
 
     if log_every_iters is None:
         log_every_iters = 1
 
-    logger.attach(
-        trainer,
-        log_handler=logger_module.OutputHandler(tag="training", metric_names="all"),
-        event_name=Events.ITERATION_COMPLETED(every=log_every_iters),
-    )
+    logger.attach(trainer,
+                  log_handler=logger_module.OutputHandler(tag="training", metric_names='all'),
+                  event_name=Events.ITERATION_COMPLETED(every=log_every_iters))
 
     if optimizers is not None:
         # Log optimizer parameters
@@ -273,13 +186,9 @@ def setup_any_logging(
             optimizers = {None: optimizers}
 
         for k, optimizer in optimizers.items():
-            logger.attach(
-                trainer,
-                log_handler=logger_module.OptimizerParamsHandler(
-                    optimizer, param_name="lr", tag=k
-                ),
-                event_name=Events.ITERATION_STARTED(every=log_every_iters),
-            )
+            logger.attach(trainer,
+                          log_handler=logger_module.OptimizerParamsHandler(optimizer, param_name="lr", tag=k),
+                          event_name=Events.ITERATION_STARTED(every=log_every_iters))
 
     if evaluators is not None:
         # Log evaluation metrics
@@ -288,18 +197,12 @@ def setup_any_logging(
 
         for k, evaluator in evaluators.items():
             gst = global_step_from_engine(trainer)
-            logger.attach(
-                evaluator,
-                log_handler=logger_module.OutputHandler(
-                    tag=k, metric_names="all", global_step_transform=gst
-                ),
-                event_name=Events.COMPLETED,
-            )
+            logger.attach(evaluator,
+                          log_handler=logger_module.OutputHandler(tag=k, metric_names='all', global_step_transform=gst),
+                          event_name=Events.COMPLETED)
 
 
-def setup_tb_logging(
-    output_path, trainer, optimizers=None, evaluators=None, log_every_iters=100
-):
+def setup_tb_logging(output_path, trainer, optimizers=None, evaluators=None, log_every_iters=100):
     """Method to setup TensorBoard logging on trainer and a list of evaluators. Logged metrics are:
         - Training metrics, e.g. running average loss values
         - Learning rate(s)
@@ -319,20 +222,13 @@ def setup_tb_logging(
         TensorboardLogger
     """
     tb_logger = TensorboardLogger(log_dir=output_path)
-    setup_any_logging(
-        tb_logger,
-        tb_logger_module,
-        trainer,
-        optimizers,
-        evaluators,
-        log_every_iters=log_every_iters,
-    )
+    setup_any_logging(tb_logger, tb_logger_module,
+                      trainer, optimizers, evaluators,
+                      log_every_iters=log_every_iters)
     return tb_logger
 
 
-def setup_mlflow_logging(
-    trainer, optimizers=None, evaluators=None, log_every_iters=100
-):
+def setup_mlflow_logging(trainer, optimizers=None, evaluators=None, log_every_iters=100):
     """Method to setup MLflow logging on trainer and a list of evaluators. Logged metrics are:
         - Training metrics, e.g. running average loss values
         - Learning rate(s)
@@ -351,14 +247,9 @@ def setup_mlflow_logging(
         MLflowLogger
     """
     mlflow_logger = MLflowLogger()
-    setup_any_logging(
-        mlflow_logger,
-        mlflow_logger_module,
-        trainer,
-        optimizers,
-        evaluators,
-        log_every_iters=log_every_iters,
-    )
+    setup_any_logging(mlflow_logger, mlflow_logger_module,
+                      trainer, optimizers, evaluators,
+                      log_every_iters=log_every_iters)
     return mlflow_logger
 
 
@@ -381,18 +272,14 @@ def setup_plx_logging(trainer, optimizers=None, evaluators=None, log_every_iters
         PolyaxonLogger
     """
     plx_logger = PolyaxonLogger()
-    setup_any_logging(
-        plx_logger,
-        polyaxon_logger_module,
-        trainer,
-        optimizers,
-        evaluators,
-        log_every_iters=log_every_iters,
-    )
+    setup_any_logging(plx_logger, polyaxon_logger_module,
+                      trainer, optimizers, evaluators,
+                      log_every_iters=log_every_iters)
     return plx_logger
 
 
 def get_default_score_fn(metric_name):
+
     def wrapper(engine):
         score = engine.state.metrics[metric_name]
         return score
@@ -400,9 +287,7 @@ def get_default_score_fn(metric_name):
     return wrapper
 
 
-def save_best_model_by_val_score(
-    output_path, evaluator, model, metric_name, n_saved=3, trainer=None, tag="val"
-):
+def save_best_model_by_val_score(output_path, evaluator, model, metric_name, n_saved=3, trainer=None, tag="val"):
     """Method adds a handler to `evaluator` to save best models based on the score (named by `metric_name`)
     provided by `evaluator`.
 
@@ -421,21 +306,13 @@ def save_best_model_by_val_score(
     if trainer is not None:
         global_step_transform = global_step_from_engine(trainer)
 
-    best_model_handler = ModelCheckpoint(
-        dirname=output_path,
-        filename_prefix="best",
-        n_saved=n_saved,
-        global_step_transform=global_step_transform,
-        score_name="{}_{}".format(tag, metric_name.lower()),
-        score_function=get_default_score_fn(metric_name),
-    )
-    evaluator.add_event_handler(
-        Events.COMPLETED,
-        best_model_handler,
-        {
-            "model": model,
-        },
-    )
+    best_model_handler = ModelCheckpoint(dirname=output_path,
+                                         filename_prefix="best",
+                                         n_saved=n_saved,
+                                         global_step_transform=global_step_transform,
+                                         score_name="{}_{}".format(tag, metric_name.lower()),
+                                         score_function=get_default_score_fn(metric_name))
+    evaluator.add_event_handler(Events.COMPLETED, best_model_handler, {'model': model, })
 
 
 def add_early_stopping_by_val_score(patience, evaluator, trainer, metric_name):
@@ -449,9 +326,5 @@ def add_early_stopping_by_val_score(patience, evaluator, trainer, metric_name):
             `evaluator.state.metrics`.
 
     """
-    es_handler = EarlyStopping(
-        patience=patience,
-        score_function=get_default_score_fn(metric_name),
-        trainer=trainer,
-    )
+    es_handler = EarlyStopping(patience=patience, score_function=get_default_score_fn(metric_name), trainer=trainer)
     evaluator.add_event_handler(Events.COMPLETED, es_handler)
