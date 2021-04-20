@@ -1,27 +1,22 @@
 import torch
 
-from ignite.engine.engine import Engine, Events, State
+from ignite.engine.engine import Engine, State, Events
 from ignite.utils import convert_tensor
 
 
 def _prepare_batch(batch, device=None, non_blocking=False):
-    """Prepare batch for training: pass to a device with options."""
+    """Prepare batch for training: pass to a device with options.
+
+    """
     x, y = batch
-    return (
-        convert_tensor(x, device=device, non_blocking=non_blocking),
-        convert_tensor(y, device=device, non_blocking=non_blocking),
-    )
+    return (convert_tensor(x, device=device, non_blocking=non_blocking),
+            convert_tensor(y, device=device, non_blocking=non_blocking))
 
 
-def create_supervised_trainer(
-    model,
-    optimizer,
-    loss_fn,
-    device=None,
-    non_blocking=False,
-    prepare_batch=_prepare_batch,
-    output_transform=lambda x, y, y_pred, loss: loss.item(),
-):
+def create_supervised_trainer(model, optimizer, loss_fn,
+                              device=None, non_blocking=False,
+                              prepare_batch=_prepare_batch,
+                              output_transform=lambda x, y, y_pred, loss: loss.item()):
     """
     Factory function for creating a trainer for supervised models.
 
@@ -60,17 +55,10 @@ def create_supervised_trainer(
     return Engine(_update)
 
 
-def create_supervised_evaluator(
-    model,
-    metrics=None,
-    device=None,
-    non_blocking=False,
-    prepare_batch=_prepare_batch,
-    output_transform=lambda x, y, y_pred: (
-        y_pred,
-        y,
-    ),
-):
+def create_supervised_evaluator(model, metrics=None,
+                                device=None, non_blocking=False,
+                                prepare_batch=_prepare_batch,
+                                output_transform=lambda x, y, y_pred: (y_pred, y,)):
     """
     Factory function for creating an evaluator for supervised models.
 

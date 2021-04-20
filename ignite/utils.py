@@ -1,13 +1,12 @@
+import os
 import collections.abc as collections
 import logging
-import os
 
 import torch
 
 
 def convert_tensor(input_, device=None, non_blocking=False):
     """Move tensors to relevant device."""
-
     def _func(tensor):
         return tensor.to(device=device, non_blocking=non_blocking) if device else tensor
 
@@ -15,30 +14,25 @@ def convert_tensor(input_, device=None, non_blocking=False):
 
 
 def apply_to_tensor(input_, func):
-    """Apply a function on a tensor or mapping, or sequence of tensors."""
+    """Apply a function on a tensor or mapping, or sequence of tensors.
+    """
     return apply_to_type(input_, torch.Tensor, func)
 
 
 def apply_to_type(input_, input_type, func):
-    """Apply a function on a object of `input_type` or mapping, or sequence of objects of `input_type`."""
+    """Apply a function on a object of `input_type` or mapping, or sequence of objects of `input_type`.
+    """
     if isinstance(input_, input_type):
         return func(input_)
     elif isinstance(input_, (str, bytes)):
         return input_
     elif isinstance(input_, collections.Mapping):
-        return {
-            k: apply_to_type(sample, input_type, func) for k, sample in input_.items()
-        }
+        return {k: apply_to_type(sample, input_type, func) for k, sample in input_.items()}
     elif isinstance(input_, collections.Sequence):
         return [apply_to_type(sample, input_type, func) for sample in input_]
     else:
-        raise TypeError(
-            (
-                "input must contain {}, dicts or lists; found {}".format(
-                    input_type, type(input_)
-                )
-            )
-        )
+        raise TypeError(("input must contain {}, dicts or lists; found {}"
+                         .format(input_type, type(input_))))
 
 
 def to_onehot(indices, num_classes):
@@ -46,23 +40,14 @@ def to_onehot(indices, num_classes):
     tensor of one-hot indicators of shape `(N, num_classes, ...) and of type uint8. Output's device is equal to the
     input's device`.
     """
-    onehot = torch.zeros(
-        indices.shape[0],
-        num_classes,
-        *indices.shape[1:],
-        dtype=torch.uint8,
-        device=indices.device
-    )
+    onehot = torch.zeros(indices.shape[0], num_classes, *indices.shape[1:],
+                         dtype=torch.uint8,
+                         device=indices.device)
     return onehot.scatter_(1, indices.unsqueeze(1), 1)
 
 
-def setup_logger(
-    name,
-    level=logging.INFO,
-    format="%(asctime)s %(name)s %(levelname)s: %(message)s",
-    filepath=None,
-    distributed_rank=0,
-):
+def setup_logger(name, level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s: %(message)s",
+                 filepath=None, distributed_rank=0):
     """Setups logger: name, level, format etc.
 
     Args:

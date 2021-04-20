@@ -1,5 +1,4 @@
 from enum import Enum
-
 from ignite.engine import Events, State
 
 
@@ -53,9 +52,7 @@ class CustomPeriodicEvent:
 
     def __init__(self, n_iterations=None, n_epochs=None):
 
-        if n_iterations is not None and (
-            not isinstance(n_iterations, int) or n_iterations < 1
-        ):
+        if n_iterations is not None and (not isinstance(n_iterations, int) or n_iterations < 1):
             raise ValueError("Argument n_iterations should be positive integer number")
 
         if n_epochs is not None and (not isinstance(n_epochs, int) or n_epochs < 1):
@@ -76,38 +73,24 @@ class CustomPeriodicEvent:
 
         self.custom_state_attr = "{}_{}".format(prefix, self.period)
         event_name = "{}_{}".format(prefix.upper(), self.period)
-        setattr(
-            self,
-            "Events",
-            Enum(
-                "Events",
-                " ".join(
-                    ["{}_STARTED".format(event_name), "{}_COMPLETED".format(event_name)]
-                ),
-            ),
-        )
+        setattr(self, "Events", Enum("Events", " ".join([
+            "{}_STARTED".format(event_name),
+            "{}_COMPLETED".format(event_name)])
+        ))
         # Update State.event_to_attr
         for e in self.Events:
             State.event_to_attr[e] = self.custom_state_attr
 
         # Create aliases
-        self._periodic_event_started = getattr(
-            self.Events, "{}_STARTED".format(event_name)
-        )
-        self._periodic_event_completed = getattr(
-            self.Events, "{}_COMPLETED".format(event_name)
-        )
+        self._periodic_event_started = getattr(self.Events, "{}_STARTED".format(event_name))
+        self._periodic_event_completed = getattr(self.Events, "{}_COMPLETED".format(event_name))
 
     def _on_started(self, engine):
         setattr(engine.state, self.custom_state_attr, 0)
 
     def _on_periodic_event_started(self, engine):
         if getattr(engine.state, self.state_attr) % self.period == 1:
-            setattr(
-                engine.state,
-                self.custom_state_attr,
-                getattr(engine.state, self.custom_state_attr) + 1,
-            )
+            setattr(engine.state, self.custom_state_attr, getattr(engine.state, self.custom_state_attr) + 1)
             engine.fire_event(self._periodic_event_started)
 
     def _on_periodic_event_completed(self, engine):
@@ -118,11 +101,7 @@ class CustomPeriodicEvent:
         engine.register_events(*self.Events)
 
         engine.add_event_handler(Events.STARTED, self._on_started)
-        engine.add_event_handler(
-            getattr(Events, "{}_STARTED".format(self.state_attr.upper())),
-            self._on_periodic_event_started,
-        )
-        engine.add_event_handler(
-            getattr(Events, "{}_COMPLETED".format(self.state_attr.upper())),
-            self._on_periodic_event_completed,
-        )
+        engine.add_event_handler(getattr(Events, "{}_STARTED".format(self.state_attr.upper())),
+                                 self._on_periodic_event_started)
+        engine.add_event_handler(getattr(Events, "{}_COMPLETED".format(self.state_attr.upper())),
+                                 self._on_periodic_event_completed)
