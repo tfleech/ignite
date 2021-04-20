@@ -1,7 +1,7 @@
 import itertools
 
-from ignite.engine import Events
 from ignite.metrics.metric import Metric, reinit__is_reduced
+from ignite.engine import Events
 
 
 class MetricsLambda(Metric):
@@ -35,12 +35,11 @@ class MetricsLambda(Metric):
         F3 = MetricsLambda(Fbeta, recall, precision, 3)
         F4 = MetricsLambda(Fbeta, recall, precision, 4)
     """
-
     def __init__(self, f, *args, **kwargs):
         self.function = f
         self.args = args
         self.kwargs = kwargs
-        super(MetricsLambda, self).__init__(device="cpu")
+        super(MetricsLambda, self).__init__(device='cpu')
 
     @reinit__is_reduced
     def reset(self):
@@ -57,27 +56,18 @@ class MetricsLambda(Metric):
 
     def compute(self):
         materialized = [i.compute() if isinstance(i, Metric) else i for i in self.args]
-        materialized_kwargs = {
-            k: (v.compute() if isinstance(v, Metric) else v)
-            for k, v in self.kwargs.items()
-        }
+        materialized_kwargs = {k: (v.compute() if isinstance(v, Metric) else v) for k, v in self.kwargs.items()}
         return self.function(*materialized, **materialized_kwargs)
 
     def _internal_attach(self, engine):
-        for index, metric in enumerate(
-            itertools.chain(self.args, self.kwargs.values())
-        ):
+        for index, metric in enumerate(itertools.chain(self.args, self.kwargs.values())):
             if isinstance(metric, MetricsLambda):
                 metric._internal_attach(engine)
             elif isinstance(metric, Metric):
                 if not engine.has_event_handler(metric.started, Events.EPOCH_STARTED):
                     engine.add_event_handler(Events.EPOCH_STARTED, metric.started)
-                if not engine.has_event_handler(
-                    metric.iteration_completed, Events.ITERATION_COMPLETED
-                ):
-                    engine.add_event_handler(
-                        Events.ITERATION_COMPLETED, metric.iteration_completed
-                    )
+                if not engine.has_event_handler(metric.iteration_completed, Events.ITERATION_COMPLETED):
+                    engine.add_event_handler(Events.ITERATION_COMPLETED, metric.iteration_completed)
 
     def attach(self, engine, name):
         # recursively attach all its dependencies

@@ -1,8 +1,9 @@
-import collections.abc as collections
 import os
 import tempfile
-import warnings
+
 from collections import namedtuple
+import collections.abc as collections
+import warnings
 
 import torch
 
@@ -116,24 +117,12 @@ class Checkpoint:
 
     Item = namedtuple("Item", ["priority", "filename"])
 
-    def __init__(
-        self,
-        to_save,
-        save_handler,
-        filename_prefix="",
-        score_function=None,
-        score_name=None,
-        n_saved=1,
-        global_step_transform=None,
-        archived=False,
-    ):
+    def __init__(self, to_save, save_handler, filename_prefix="",
+                 score_function=None, score_name=None, n_saved=1,
+                 global_step_transform=None, archived=False):
 
         if not isinstance(to_save, collections.Mapping):
-            raise TypeError(
-                "Argument `to_save` should be a dictionary, but given {}".format(
-                    type(to_save)
-                )
-            )
+            raise TypeError("Argument `to_save` should be a dictionary, but given {}".format(type(to_save)))
 
         if len(to_save) < 1:
             raise ValueError("No objects to checkpoint.")
@@ -142,22 +131,15 @@ class Checkpoint:
             raise TypeError("Argument `save_handler` should be callable")
 
         if score_function is None and score_name is not None:
-            raise ValueError(
-                "If `score_name` is provided, then `score_function` "
-                "should be also provided."
-            )
+            raise ValueError("If `score_name` is provided, then `score_function` "
+                             "should be also provided.")
 
         if global_step_transform is not None and not callable(global_step_transform):
-            raise TypeError(
-                "global_step_transform should be a function, got {} instead.".format(
-                    type(global_step_transform)
-                )
-            )
+            raise TypeError("global_step_transform should be a function, got {} instead."
+                            .format(type(global_step_transform)))
 
         self._check_objects(to_save, "state_dict")
-        self._fname_prefix = (
-            filename_prefix + "_" if len(filename_prefix) > 0 else filename_prefix
-        )
+        self._fname_prefix = filename_prefix + "_" if len(filename_prefix) > 0 else filename_prefix
         self.save_handler = save_handler
         self.to_save = to_save
         self._score_function = score_function
@@ -210,7 +192,7 @@ class Checkpoint:
                 for k in checkpoint:
                     name = k
                 checkpoint = checkpoint[name]
-            filename = "{}{}_{}{}".format(self._fname_prefix, name, suffix, self._ext)
+            filename = '{}{}_{}{}'.format(self._fname_prefix, name, suffix, self._ext)
 
             self.save_handler(checkpoint, filename)
 
@@ -231,9 +213,7 @@ class Checkpoint:
     def _check_objects(objs, attr):
         for k, obj in objs.items():
             if not hasattr(obj, attr):
-                raise TypeError(
-                    "Object {} should have `{}` method".format(type(obj), attr)
-                )
+                raise TypeError("Object {} should have `{}` method".format(type(obj), attr))
 
     @staticmethod
     def load_objects(to_load, checkpoint):
@@ -246,18 +226,10 @@ class Checkpoint:
         """
         Checkpoint._check_objects(to_load, "load_state_dict")
         if not isinstance(checkpoint, collections.Mapping):
-            raise TypeError(
-                "Argument checkpoint should be a dictionary, but given {}".format(
-                    type(checkpoint)
-                )
-            )
+            raise TypeError("Argument checkpoint should be a dictionary, but given {}".format(type(checkpoint)))
         for k, obj in to_load.items():
             if k not in checkpoint:
-                raise ValueError(
-                    "Object labeled by '{}' from `to_load` is not found in the checkpoint".format(
-                        k
-                    )
-                )
+                raise ValueError("Object labeled by '{}' from `to_load` is not found in the checkpoint".format(k))
             obj.load_state_dict(checkpoint[k])
 
 
@@ -284,18 +256,12 @@ class DiskSaver:
             raise ValueError("Directory path '{}' is not found".format(dirname))
 
         if require_empty:
-            matched = [
-                fname
-                for fname in os.listdir(dirname)
-                if fname.endswith(".pth") or fname.endswith(".pth.tar")
-            ]
+            matched = [fname for fname in os.listdir(dirname) if fname.endswith(".pth") or fname.endswith(".pth.tar")]
             if len(matched) > 0:
-                raise ValueError(
-                    "Files {} with extension '.pth' or '.pth.tar' are already present "
-                    "in the directory {}. If you want to use this "
-                    "directory anyway, pass `require_empty=False`."
-                    "".format(matched, dirname)
-                )
+                raise ValueError("Files {} with extension '.pth' or '.pth.tar' are already present "
+                                 "in the directory {}. If you want to use this "
+                                 "directory anyway, pass `require_empty=False`."
+                                 "".format(matched, dirname))
 
     def __call__(self, checkpoint, filename):
         path = os.path.join(self.dirname, filename)
@@ -385,31 +351,19 @@ class ModelCheckpoint(Checkpoint):
         ['/tmp/models/myprefix_mymodel_6.pth']
     """
 
-    def __init__(
-        self,
-        dirname,
-        filename_prefix,
-        save_interval=None,
-        score_function=None,
-        score_name=None,
-        n_saved=1,
-        atomic=True,
-        require_empty=True,
-        create_dir=True,
-        save_as_state_dict=True,
-        global_step_transform=None,
-        archived=False,
-    ):
+    def __init__(self, dirname, filename_prefix,
+                 save_interval=None,
+                 score_function=None, score_name=None,
+                 n_saved=1,
+                 atomic=True, require_empty=True,
+                 create_dir=True,
+                 save_as_state_dict=True, global_step_transform=None, archived=False):
 
         if not save_as_state_dict:
-            raise ValueError(
-                "Argument save_as_state_dict is deprecated and should be True"
-            )
+            raise ValueError("Argument save_as_state_dict is deprecated and should be True")
         if save_interval is not None:
-            msg = (
-                "Argument save_interval is deprecated and should be None. "
-                "Please, use events filtering instead, e.g. Events.ITERATION_STARTED(every=1000)"
-            )
+            msg = "Argument save_interval is deprecated and should be None. " \
+                  "Please, use events filtering instead, e.g. Events.ITERATION_STARTED(every=1000)"
             if save_interval == 1:
                 # Do not break for old version who used `save_interval=1`
                 warnings.warn(msg)
@@ -417,26 +371,17 @@ class ModelCheckpoint(Checkpoint):
                 # No choice
                 raise ValueError(msg)
 
-        disk_saver = DiskSaver(
-            dirname, atomic=atomic, create_dir=create_dir, require_empty=require_empty
-        )
+        disk_saver = DiskSaver(dirname, atomic=atomic, create_dir=create_dir, require_empty=require_empty)
 
         if score_function is None and score_name is not None:
-            raise ValueError(
-                "If `score_name` is provided, then `score_function` "
-                "should be also provided."
-            )
+            raise ValueError("If `score_name` is provided, then `score_function` "
+                             "should be also provided.")
 
         if global_step_transform is not None and not callable(global_step_transform):
-            raise TypeError(
-                "global_step_transform should be a function, got {} instead.".format(
-                    type(global_step_transform)
-                )
-            )
+            raise TypeError("global_step_transform should be a function, got {} instead."
+                            .format(type(global_step_transform)))
 
-        self._fname_prefix = (
-            filename_prefix + "_" if len(filename_prefix) > 0 else filename_prefix
-        )
+        self._fname_prefix = filename_prefix + "_" if len(filename_prefix) > 0 else filename_prefix
         self.save_handler = disk_saver
         self.to_save = None
         self._score_function = score_function

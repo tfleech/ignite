@@ -1,13 +1,13 @@
 import inspect
 import logging
-import numbers
-import random
 import time
-import warnings
-import weakref
-from collections import OrderedDict, defaultdict
+from collections import defaultdict, OrderedDict
 from collections.abc import Mapping
 from enum import Enum
+import weakref
+import numbers
+import random
+import warnings
 
 import torch
 
@@ -15,6 +15,7 @@ from ignite._utils import _to_hours_mins_secs
 
 
 class EventWithFilter:
+
     def __init__(self, event, filter):
         if not callable(filter):
             raise TypeError("Argument filter should be callable")
@@ -22,11 +23,7 @@ class EventWithFilter:
         self.filter = filter
 
     def __str__(self):
-        return "<%s event=%s, filter=%r>" % (
-            self.__class__.__name__,
-            self.event,
-            self.filter,
-        )
+        return "<%s event=%s, filter=%r>" % (self.__class__.__name__, self.event, self.filter)
 
 
 class CallableEvents:
@@ -48,18 +45,15 @@ class CallableEvents:
             # do something
 
     """
-
     def __call__(self, event_filter=None, every=None, once=None):
 
-        if not ((event_filter is not None) ^ (every is not None) ^ (once is not None)):
+        if not((event_filter is not None) ^ (every is not None) ^ (once is not None)):
             raise ValueError("Only one of the input arguments should be specified")
 
         if (event_filter is not None) and not callable(event_filter):
             raise TypeError("Argument event_filter should be a callable")
 
-        if (every is not None) and not (
-            isinstance(every, numbers.Integral) and every > 0
-        ):
+        if (every is not None) and not (isinstance(every, numbers.Integral) and every > 0):
             raise ValueError("Argument every should be integer and greater than zero")
 
         if (once is not None) and not (isinstance(once, numbers.Integral) and once > 0):
@@ -85,7 +79,6 @@ class CallableEvents:
             if event % every == 0:
                 return True
             return False
-
         return wrapper
 
     @staticmethod
@@ -94,7 +87,6 @@ class CallableEvents:
             if event == once:
                 return True
             return False
-
         return wrapper
 
 
@@ -131,7 +123,6 @@ class Events(CallableEvents, Enum):
     Argument `event` is the value of iteration or epoch, depending on which type of Events the function is passed.
 
     """
-
     EPOCH_STARTED = "epoch_started"
     EPOCH_COMPLETED = "epoch_completed"
     STARTED = "started"
@@ -378,11 +369,9 @@ class Engine:
         self.register_events(*Events)
 
         if self._process_function is None:
-            raise ValueError(
-                "Engine must be given a processing function in order to run."
-            )
+            raise ValueError("Engine must be given a processing function in order to run.")
 
-        Engine._check_signature(self, process_function, "process_function", None)
+        Engine._check_signature(self, process_function, 'process_function', None)
 
     def register_events(self, *event_names, **kwargs):
         """Add events that can be fired.
@@ -435,14 +424,10 @@ class Engine:
             # engine.state contains an attribute time_iteration, which can be accessed using engine.state.time_iteration
         """
         # for python2 compatibility:
-        event_to_attr = kwargs.get("event_to_attr", None)
+        event_to_attr = kwargs.get('event_to_attr', None)
         if event_to_attr is not None:
             if not isinstance(event_to_attr, dict):
-                raise ValueError(
-                    "Expected event_to_attr to be dictionary. Got {}.".format(
-                        type(event_to_attr)
-                    )
-                )
+                raise ValueError('Expected event_to_attr to be dictionary. Got {}.'.format(type(event_to_attr)))
 
         for e in event_names:
             self._allowed_events.append(e)
@@ -451,6 +436,7 @@ class Engine:
 
     @staticmethod
     def _handler_wrapper(handler, event_name, event_filter):
+
         def wrapper(engine, *args, **kwargs):
             event = engine.state.get_event_attrib_value(event_name)
             if event_filter(engine, event):
@@ -502,17 +488,11 @@ class Engine:
             handler = Engine._handler_wrapper(handler, event_name, event_filter)
 
         if event_name not in self._allowed_events:
-            self.logger.error(
-                "attempt to add event handler to an invalid event %s.", event_name
-            )
-            raise ValueError(
-                "Event {} is not a valid event for this Engine.".format(event_name)
-            )
+            self.logger.error("attempt to add event handler to an invalid event %s.", event_name)
+            raise ValueError("Event {} is not a valid event for this Engine.".format(event_name))
 
-        event_args = (Exception(),) if event_name == Events.EXCEPTION_RAISED else ()
-        Engine._check_signature(
-            self, handler, "handler", *(event_args + args), **kwargs
-        )
+        event_args = (Exception(), ) if event_name == Events.EXCEPTION_RAISED else ()
+        Engine._check_signature(self, handler, 'handler', *(event_args + args), **kwargs)
 
         self._event_handlers[event_name].append((handler, args, kwargs))
         self.logger.debug("added handler for event %s.", event_name)
@@ -522,10 +502,8 @@ class Engine:
     @staticmethod
     def _assert_non_callable_event(event_name):
         if isinstance(event_name, EventWithFilter):
-            raise TypeError(
-                "Argument event_name should not be a callable event, "
-                "please use event without any event filtering"
-            )
+            raise TypeError("Argument event_name should not be a callable event, "
+                            "please use event without any event filtering")
 
     def has_event_handler(self, handler, event_name=None):
         """Check if the specified event has the specified handler.
@@ -567,17 +545,10 @@ class Engine:
         if event_name not in self._event_handlers:
             raise ValueError("Input event name '{}' does not exist".format(event_name))
 
-        new_event_handlers = [
-            (h, args, kwargs)
-            for h, args, kwargs in self._event_handlers[event_name]
-            if not self._compare_handlers(handler, h)
-        ]
+        new_event_handlers = [(h, args, kwargs) for h, args, kwargs in self._event_handlers[event_name]
+                              if not self._compare_handlers(handler, h)]
         if len(new_event_handlers) == len(self._event_handlers[event_name]):
-            raise ValueError(
-                "Input handler '{}' is not found among registered event handlers".format(
-                    handler
-                )
-            )
+            raise ValueError("Input handler '{}' is not found among registered event handlers".format(handler))
         self._event_handlers[event_name] = new_event_handlers
 
     @staticmethod
@@ -593,13 +564,9 @@ class Engine:
 
         if exception_msg:
             passed_params = [self] + list(args) + list(kwargs)
-            raise ValueError(
-                "Error adding {} '{}': "
-                "takes parameters {} but will be called with {} "
-                "({}).".format(
-                    fn, fn_description, fn_params, passed_params, exception_msg
-                )
-            )
+            raise ValueError("Error adding {} '{}': "
+                             "takes parameters {} but will be called with {} "
+                             "({}).".format(fn, fn_description, fn_params, passed_params, exception_msg))
 
     def on(self, event_name, *args, **kwargs):
         """Decorator shortcut for add_event_handler.
@@ -611,11 +578,9 @@ class Engine:
             **kwargs: optional keyword args to be passed to `handler`.
 
         """
-
         def decorator(f):
             self.add_event_handler(event_name, f, *args, **kwargs)
             return f
-
         return decorator
 
     def _fire_event(self, event_name, *event_args, **event_kwargs):
@@ -665,18 +630,16 @@ class Engine:
         return self._fire_event(event_name)
 
     def terminate(self):
-        """Sends terminate signal to the engine, so that it terminates completely the run after the current iteration."""
-        self.logger.info(
-            "Terminate signaled. Engine will stop after current iteration is finished."
-        )
+        """Sends terminate signal to the engine, so that it terminates completely the run after the current iteration.
+        """
+        self.logger.info("Terminate signaled. Engine will stop after current iteration is finished.")
         self.should_terminate = True
 
     def terminate_epoch(self):
-        """Sends terminate signal to the engine, so that it terminates the current epoch after the current iteration."""
-        self.logger.info(
-            "Terminate current epoch is signaled. "
-            "Current epoch iteration will stop after current iteration is finished."
-        )
+        """Sends terminate signal to the engine, so that it terminates the current epoch after the current iteration.
+        """
+        self.logger.info("Terminate current epoch is signaled. "
+                         "Current epoch iteration will stop after current iteration is finished.")
         self.should_terminate_single_epoch = True
 
     def _run_once_on_dataset(self):
@@ -704,14 +667,11 @@ class Engine:
                     # Should exit while loop if we can not iterate
                     if should_exit:
                         if not self._is_done(self.state):
-                            warnings.warn(
-                                "Data iterator can not provide data anymore but required total number of "
-                                "iterations to run is not reached. "
-                                "Current iteration: {} vs Total iterations to run : {}".format(
-                                    self.state.iteration,
-                                    self.state.epoch_length * self.state.max_epochs,
-                                )
-                            )
+                            warnings.warn("Data iterator can not provide data anymore but required total number of "
+                                          "iterations to run is not reached. "
+                                          "Current iteration: {} vs Total iterations to run : {}"
+                                          .format(self.state.iteration,
+                                                  self.state.epoch_length * self.state.max_epochs))
                         break
 
                     # set seed on restart of data iterator
@@ -733,9 +693,7 @@ class Engine:
 
                 if self.should_terminate or self.should_terminate_single_epoch:
                     self.should_terminate_single_epoch = False
-                    self._manual_seed(
-                        self.state.seed, self.state.iteration // iter_counter
-                    )
+                    self._manual_seed(self.state.seed, self.state.iteration // iter_counter)
                     self._dataloader_iter = iter(self.state.dataloader)
                     break
 
@@ -743,9 +701,7 @@ class Engine:
                     break
 
         except BaseException as e:
-            self.logger.error(
-                "Current run is terminating due to exception: %s.", str(e)
-            )
+            self.logger.error("Current run is terminating due to exception: %s.", str(e))
             self._handle_exception(e)
 
         time_taken = time.time() - start_time
@@ -769,7 +725,7 @@ class Engine:
         """
         if self.state is None:
             return OrderedDict()
-        keys = self._state_dict_all_req_keys + (self._state_dict_one_of_opt_keys[0],)
+        keys = self._state_dict_all_req_keys + (self._state_dict_one_of_opt_keys[0], )
         return OrderedDict([(k, getattr(self.state, k)) for k in keys])
 
     def load_state_dict(self, state_dict):
@@ -795,40 +751,25 @@ class Engine:
 
         """
         if not isinstance(state_dict, Mapping):
-            raise TypeError(
-                "Argument state_dict should be a dictionary, but given {}".format(
-                    type(state_dict)
-                )
-            )
+            raise TypeError("Argument state_dict should be a dictionary, but given {}".format(type(state_dict)))
 
         for k in self._state_dict_all_req_keys:
             if k not in state_dict:
-                raise ValueError(
-                    "Required state attribute '{}' is absent in provided state_dict '{}'".format(
-                        k, state_dict.keys()
-                    )
-                )
+                raise ValueError("Required state attribute '{}' is absent in provided state_dict '{}'"
+                                 .format(k, state_dict.keys()))
 
         opts = [k in state_dict for k in self._state_dict_one_of_opt_keys]
         if (not any(opts)) or (all(opts)):
-            raise ValueError(
-                "state_dict should contain only one of '{}' keys".format(
-                    self._state_dict_one_of_opt_keys
-                )
-            )
+            raise ValueError("state_dict should contain only one of '{}' keys".format(self._state_dict_one_of_opt_keys))
 
-        self.state = State(
-            seed=state_dict["seed"],
-            max_epochs=state_dict["max_epochs"],
-            epoch_length=state_dict["epoch_length"],
-            metrics={},
-        )
+        self.state = State(seed=state_dict['seed'], max_epochs=state_dict['max_epochs'],
+                           epoch_length=state_dict['epoch_length'], metrics={})
 
         if "iteration" in state_dict:
-            self.state.iteration = state_dict["iteration"]
+            self.state.iteration = state_dict['iteration']
             self.state.epoch = self.state.iteration // self.state.epoch_length
         elif "epoch" in state_dict:
-            self.state.epoch = state_dict["epoch"]
+            self.state.epoch = state_dict['epoch']
             self.state.iteration = self.state.epoch_length * self.state.epoch
 
     @staticmethod
@@ -889,23 +830,11 @@ class Engine:
                 if hasattr(data, "__len__"):
                     epoch_length = len(data)
                     if epoch_length < 1:
-                        raise ValueError(
-                            "Input data has zero size. Please provide non-empty data"
-                        )
+                        raise ValueError("Input data has zero size. Please provide non-empty data")
                 else:
-                    raise ValueError(
-                        "Argument `epoch_length` should be defined if `data` is an iterator"
-                    )
-            self.state = State(
-                seed=seed,
-                iteration=0,
-                epoch=0,
-                max_epochs=max_epochs,
-                epoch_length=epoch_length,
-            )
-            self.logger.info(
-                "Engine run starting with max_epochs={}.".format(max_epochs)
-            )
+                    raise ValueError("Argument `epoch_length` should be defined if `data` is an iterator")
+            self.state = State(seed=seed, iteration=0, epoch=0, max_epochs=max_epochs, epoch_length=epoch_length)
+            self.logger.info("Engine run starting with max_epochs={}.".format(max_epochs))
         else:
             # Keep actual state and override it if input args provided
             if max_epochs is not None:
@@ -914,11 +843,8 @@ class Engine:
                 self.state.seed = seed
             if epoch_length is not None:
                 self.state.epoch_length = epoch_length
-            self.logger.info(
-                "Engine run resuming from iteration {}, epoch {} until {} epochs".format(
-                    self.state.iteration, self.state.epoch, self.state.max_epochs
-                )
-            )
+            self.logger.info("Engine run resuming from iteration {}, epoch {} until {} epochs"
+                             .format(self.state.iteration, self.state.epoch, self.state.max_epochs))
 
         self.state.dataloader = data
         return self._internal_run()
@@ -926,11 +852,7 @@ class Engine:
     def _setup_engine(self):
 
         try:
-            self._dataloader_len = (
-                len(self.state.dataloader)
-                if hasattr(self.state.dataloader, "__len__")
-                else None
-            )
+            self._dataloader_len = len(self.state.dataloader) if hasattr(self.state.dataloader, "__len__") else None
         except TypeError:
             # _InfiniteConstantSampler can raise a TypeError on DataLoader length of a IterableDataset
             self._dataloader_len = None
@@ -942,25 +864,18 @@ class Engine:
         # such that its random sampling indices are reproducible by prefetching them before data iteration
         if isinstance(self.state.dataloader, torch.utils.data.DataLoader):
 
-            if (self._dataloader_len is not None) and hasattr(
-                self.state.dataloader.sampler, "epoch"
-            ):
+            if (self._dataloader_len is not None) and hasattr(self.state.dataloader.sampler, "epoch"):
                 if self._dataloader_len != self.state.epoch_length:
-                    warnings.warn(
-                        "When defined engine's epoch length is different of input dataloader length, "
-                        "distributed sampler indices can not be setup in a reproducible manner"
-                    )
+                    warnings.warn("When defined engine's epoch length is different of input dataloader length, "
+                                  "distributed sampler indices can not be setup in a reproducible manner")
 
             batch_sampler = self.state.dataloader.batch_sampler
             if not isinstance(batch_sampler, ReproducibleBatchSampler):
-                self.state.dataloader = _update_dataloader(
-                    self.state.dataloader, ReproducibleBatchSampler(batch_sampler)
-                )
+                self.state.dataloader = _update_dataloader(self.state.dataloader,
+                                                           ReproducibleBatchSampler(batch_sampler))
 
         iteration = self.state.iteration
-        self._dataloader_iter = self._from_iteration(
-            self.state.dataloader, iteration, self.state.epoch_length
-        )
+        self._dataloader_iter = self._from_iteration(self.state.dataloader, iteration, self.state.epoch_length)
 
         # Below we define initial counter value for _run_once_on_dataset to measure a single epoch
         if self.state.epoch_length is not None:
@@ -995,7 +910,6 @@ class Engine:
         torch.manual_seed(seed + epoch)
         try:
             import numpy as np
-
             np.random.seed(seed + epoch)
         except ImportError:
             pass
@@ -1013,9 +927,7 @@ class Engine:
         try:
             start_time = time.time()
             self._fire_event(Events.STARTED)
-            while (
-                self.state.epoch < self.state.max_epochs and not self.should_terminate
-            ):
+            while self.state.epoch < self.state.max_epochs and not self.should_terminate:
                 self.state.epoch += 1
                 self._fire_event(Events.EPOCH_STARTED)
 
@@ -1024,13 +936,7 @@ class Engine:
 
                 hours, mins, secs = self._run_once_on_dataset()
 
-                self.logger.info(
-                    "Epoch[%s] Complete. Time taken: %02d:%02d:%02d",
-                    self.state.epoch,
-                    hours,
-                    mins,
-                    secs,
-                )
+                self.logger.info("Epoch[%s] Complete. Time taken: %02d:%02d:%02d", self.state.epoch, hours, mins, secs)
                 if self.should_terminate:
                     break
                 self._fire_event(Events.EPOCH_COMPLETED)
@@ -1038,9 +944,7 @@ class Engine:
             self._fire_event(Events.COMPLETED)
             time_taken = time.time() - start_time
             hours, mins, secs = _to_hours_mins_secs(time_taken)
-            self.logger.info(
-                "Engine run complete. Time taken %02d:%02d:%02d" % (hours, mins, secs)
-            )
+            self.logger.info("Engine run complete. Time taken %02d:%02d:%02d" % (hours, mins, secs))
 
         except BaseException as e:
             self._dataloader_iter = self._dataloader_len = None
@@ -1053,11 +957,11 @@ class Engine:
 
 def _update_dataloader(dataloader, new_batch_sampler):
     params_keys = [k for k in dataloader.__dict__.keys() if not k.startswith("_")]
-    for k in ["batch_size", "sampler", "drop_last", "batch_sampler", "dataset_kind"]:
+    for k in ['batch_size', 'sampler', 'drop_last', 'batch_sampler', 'dataset_kind']:
         if k in params_keys:
             params_keys.remove(k)
     params = {k: getattr(dataloader, k) for k in params_keys}
-    params["batch_sampler"] = new_batch_sampler
+    params['batch_sampler'] = new_batch_sampler
     return torch.utils.data.DataLoader(**params)
 
 
@@ -1069,15 +973,14 @@ class ReproducibleBatchSampler(torch.utils.data.sampler.BatchSampler):
             `torch.utils.data.DataLoader`
         start_iteration (int, optional): optional start iteration
     """
-
     def __init__(self, batch_sampler, start_iteration=None):
-        # if not isinstance(batch_sampler, torch.utils.data.sampler.BatchSampler):
+        #if not isinstance(batch_sampler, torch.utils.data.sampler.BatchSampler):
         #    raise TypeError("Argument batch_sampler should be torch.utils.data.sampler.BatchSampler")
 
         self.batch_indices = None
         self.batch_sampler = batch_sampler
         self.start_iteration = start_iteration
-        # self.sampler = self.batch_sampler.sampler
+        #self.sampler = self.batch_sampler.sampler
         self.sampler = self.batch_sampler
 
     def setup_batch_indices(self):
@@ -1086,7 +989,7 @@ class ReproducibleBatchSampler(torch.utils.data.sampler.BatchSampler):
             self.batch_indices.append(batch)
 
         if self.start_iteration is not None:
-            self.batch_indices = self.batch_indices[self.start_iteration :]
+            self.batch_indices = self.batch_indices[self.start_iteration:]
             self.start_iteration = None
 
     def __iter__(self):
